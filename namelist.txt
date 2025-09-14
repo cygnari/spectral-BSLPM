@@ -1,0 +1,10 @@
+out_path=../../run-output/
+write_precision=16
+write_output=1
+levels=9
+interp_degree=6
+end_time=86400
+delta_t=864
+initial_condition=sh43
+balance_ic=0
+end

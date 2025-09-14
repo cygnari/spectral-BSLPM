@@ -1,0 +1,7 @@
+#ifndef H_SBSLPM_CONFIG_H
+#define H_SBSLPM_CONFIG_H
+
+#define NAMELIST_DIR "@PROJECT_SOURCE_DIR@/"
+#define DATA_DIR "@PROJECT_SOURCE_DIR@/data-files/"
+
+#endif
