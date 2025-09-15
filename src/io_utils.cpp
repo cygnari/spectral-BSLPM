@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <Kokkos_Core.hpp>
 
 #include "run_config.hpp"
