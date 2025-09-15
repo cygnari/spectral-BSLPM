@@ -4,6 +4,6 @@
 #include "Kokkos_Core.hpp"
 #include "run_config.hpp"
 
-void poisson_initialize(const RunConfig& run_config, Kokkos::View<double*>& xcos, Kokkos::View<double*>& ycos, Kokkos::View<double*>& zcos, Kokkos::View<double*>& potential);
+void poisson_initialize(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& xcos, Kokkos::View<double*, Kokkos::HostSpace>& ycos, Kokkos::View<double*, Kokkos::HostSpace>& zcos, Kokkos::View<double*, Kokkos::HostSpace>& potential);
 
 #endif

@@ -1,13 +1,12 @@
 #ifndef H_CUBE_SPHERE_TRANSFORMS_IMPL_H
 #define H_CUBE_SPHERE_TRANSFORMS_IMPL_H
 
-#include <cmath>
-#include <stdexcept>
+#include <Kokkos_Core.hpp>
 
 int face_from_xyz(const double x, const double y, const double z) {
-	double ax = std::abs(x);
-	double ay = std::abs(y);
-	double az = std::abs(z);
+	double ax = Kokkos::abs(x);
+	double ay = Kokkos::abs(y);
+	double az = Kokkos::abs(z);
 	if ((ax >= ay) and (ax >= az)) {
 	  if (x >= 0) {
 	    return 1;
@@ -30,63 +29,51 @@ int face_from_xyz(const double x, const double y, const double z) {
 }
 
 void xyz_from_xieta_1(const double xi, const double eta, double* xyz) {
-  double X = tan(xi);
-  double Y = tan(eta);
-  // double xyz[3];
-  xyz[0] = 1/sqrt(1+X*X+Y*Y);
+  double X = Kokkos::tan(xi);
+  double Y = Kokkos::tan(eta);
+  xyz[0] = 1.0/Kokkos::sqrt(1+X*X+Y*Y);
   xyz[1] = X*xyz[0];
   xyz[2] = Y*xyz[0];
-  // return xyz;
 }
 
 void xyz_from_xieta_2(const double xi, const double eta, double* xyz) {
-  double X = tan(xi);
-  double Y = tan(eta);
-  // double xyz[3];
-  xyz[1] = 1/sqrt(1+X*X+Y*Y);
+  double X = Kokkos::tan(xi);
+  double Y = Kokkos::tan(eta);
+  xyz[1] = 1.0/Kokkos::sqrt(1+X*X+Y*Y);
   xyz[0] = -X*xyz[1];
   xyz[2] = Y*xyz[1];
-  // return xyz;
 }
 
 void xyz_from_xieta_3(const double xi, const double eta, double* xyz) {
-  double X = tan(xi);
-  double Y = tan(eta);
-  // double xyz[3];
-  xyz[0] = -1/sqrt(1+X*X+Y*Y);
+  double X = Kokkos::tan(xi);
+  double Y = Kokkos::tan(eta);
+  xyz[0] = -1.0/Kokkos::sqrt(1+X*X+Y*Y);
   xyz[1] = X*xyz[0];
   xyz[2] = -Y*xyz[0];
-  // return xyz;
 }
 
 void xyz_from_xieta_4(const double xi, const double eta, double* xyz) {
-  double X = tan(xi);
-  double Y = tan(eta);
-  // double xyz[3];
-  xyz[1] = -1/sqrt(1+X*X+Y*Y);
+  double X = Kokkos::tan(xi);
+  double Y = Kokkos::tan(eta);
+  xyz[1] = -1.0/Kokkos::sqrt(1+X*X+Y*Y);
   xyz[0] = -X*xyz[1];
   xyz[2] = -Y*xyz[1];
-  // return xyz;
 }
 
 void xyz_from_xieta_5(const double xi, const double eta, double* xyz) {
-  double X = tan(xi);
-  double Y = tan(eta);
-  // double xyz[3];
-  xyz[2] = 1/sqrt(1+X*X+Y*Y);
+  double X = Kokkos::tan(xi);
+  double Y = Kokkos::tan(eta);
+  xyz[2] = 1.0/Kokkos::sqrt(1+X*X+Y*Y);
   xyz[0] = -Y*xyz[2];
   xyz[1] = X*xyz[2];
-  // return xyz;
 }
 
 void xyz_from_xieta_6(const double xi, const double eta, double* xyz) {
-  double X = tan(xi);
-  double Y = tan(eta);
-  // double xyz[3];
-  xyz[2] = -1/sqrt(1+X*X+Y*Y);
+  double X = Kokkos::tan(xi);
+  double Y = Kokkos::tan(eta);
+  xyz[2] = -1.0/Kokkos::sqrt(1+X*X+Y*Y);
   xyz[0] = -Y*xyz[2];
   xyz[1] = -X*xyz[2];
-  // return xyz;
 }
 
 void xyz_from_xieta(const double xi, const double eta, const int face, double* xyz) {
@@ -103,56 +90,44 @@ void xyz_from_xieta(const double xi, const double eta, const int face, double* x
 	} else if (face == 6) {
 	  xyz_from_xieta_6(xi, eta, xyz);
 	} else {
-	  throw std::runtime_error("face is not 1 to 6, xyz_from_xieta");
+	  Kokkos::abort("Input face is not between 1 and 6, xyz_from_xieta");
 	}
 }
 
 void xieta_from_xyz_1(const double x, const double y, const double z, double* xieta) {
-  // double xieta[2];
-  xieta[0] = atan(y/x);
-  xieta[1] = atan(z/x);
-  // return xieta;
+  xieta[0] = Kokkos::atan(y/x);
+  xieta[1] = Kokkos::atan(z/x);
 }
 
 void xieta_from_xyz_2(const double x, const double y, const double z, double* xieta) {
-  // double xieta[2];
-  xieta[0] = atan(-x/y);
-  xieta[1] = atan(z/y);
-  // return xieta;
+  xieta[0] = Kokkos::atan(-x/y);
+  xieta[1] = Kokkos::atan(z/y);
 }
 
 void xieta_from_xyz_3(const double x, const double y, const double z, double* xieta) {
-  // double xieta[2];
-  xieta[0] = atan(y/x);
-  xieta[1] = atan(-z/x);
-  // return xieta;
+  xieta[0] = Kokkos::atan(y/x);
+  xieta[1] = Kokkos::atan(-z/x);
 }
 
 void xieta_from_xyz_4(const double x, const double y, const double z, double* xieta) {
-  // double xieta[2];
-  xieta[0] = atan(-x/y);
-  xieta[1] = atan(-z/y);
-  // return xieta;
+  xieta[0] = Kokkos::atan(-x/y);
+  xieta[1] = Kokkos::atan(-z/y);
 }
 
 void xieta_from_xyz_5(const double x, const double y, const double z, double* xieta) {
-  // double xieta[2];
-  xieta[0] = atan(y/z);
-  xieta[1] = atan(-x/z);
-  // return xieta;
+  xieta[0] = Kokkos::atan(y/z);
+  xieta[1] = Kokkos::atan(-x/z);
 }
 
 void xieta_from_xyz_6(const double x, const double y, const double z, double* xieta) {
-  // double xieta[2];
-  xieta[0] = atan(-y/z);
-  xieta[1] = atan(-x/z);
-  // return xieta;
+  xieta[0] = Kokkos::atan(-y/z);
+  xieta[1] = Kokkos::atan(-x/z);
 }
 
 void xieta_from_xyz(const double x, const double y, const double z, double* xieta) {
-	double ax = std::abs(x);
-	double ay = std::abs(y);
-	double az = std::abs(z);
+	double ax = Kokkos::abs(x);
+	double ay = Kokkos::abs(y);
+	double az = Kokkos::abs(z);
 
 	if ((ax >= ay) and (ax >= az)) {
 	  if (x >= 0) {
@@ -189,7 +164,7 @@ void xieta_from_xyz(const double x, const double y, const double z, const int fa
 	} else if (face == 6) {
 	  xieta_from_xyz_6(x, y, z, xieta);
 	} else {
-	  throw std::runtime_error("Face not between 1 and 6, xieta_from_xyz");
+	  Kokkos::abort("Input face is not between 1 and 6, xieta_from_xyz");
 	}
 }
 

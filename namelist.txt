@@ -1,7 +1,7 @@
 out_path=../../run-output/
 write_precision=16
 write_output=1
-levels=9
+levels=5
 interp_degree=6
 end_time=86400
 delta_t=864

@@ -52,9 +52,9 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	}
 }
 
-void write_state(Kokkos::View<double*> &data, const std::string path, const std::string additional, const int prec) {
+void write_state(Kokkos::View<double*, Kokkos::HostSpace> &data, const std::string path, const std::string additional, const int prec) {
   std::ofstream write_out(path + additional, std::ofstream::out | std::ofstream::trunc);
-  for (int i = 0; i < data.size(); i++) { // write out state
+  for (int i = 0; i < data.extent_int(0); i++) { // write out state
     write_out << std::setprecision(prec) << data(i) << "\n";
   }
   write_out.close();

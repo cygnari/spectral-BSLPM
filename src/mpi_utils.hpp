@@ -13,11 +13,11 @@ template <typename T> void sync_updates(Kokkos::View<T*> &vals, const int P, con
   MPI_Barrier(mpi_communicator);
   MPI_Win_fence(0, *win);
   if (ID != 0) {
-    MPI_Accumulate(&vals(0), vals.size(), type, 0, 0, vals.size(), type, MPI_SUM, *win);
+    MPI_Accumulate(&vals(0), vals.extent_int(0), type, 0, 0, vals.extent_int(0), type, MPI_SUM, *win);
   }
   MPI_Win_fence(0, *win);
   if (ID != 0) {
-    MPI_Get(&vals(0), vals.size(), type, 0, 0, vals.size(), type, *win);
+    MPI_Get(&vals(0), vals.extent_int(0), type, 0, 0, vals.extent_int(0), type, *win);
   }
   MPI_Win_fence(0, *win);
   MPI_Barrier(mpi_communicator);
