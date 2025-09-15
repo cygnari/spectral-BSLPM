@@ -7,7 +7,7 @@
 
 void bounds_determine_1d(RunConfig& run_config, const int P, const int ID);
 
-template <typename T> void sync_updates(Kokkos::View<T*> &vals, const int P, const int ID,
+template <typename T> void sync_updates(Kokkos::View<T*, Kokkos::HostSpace()> &vals, const int P, const int ID,
                   const MPI_Win *win, MPI_Datatype type,
                   MPI_Comm mpi_communicator = MPI_COMM_WORLD) {
   MPI_Barrier(mpi_communicator);

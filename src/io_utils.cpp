@@ -59,3 +59,11 @@ void write_state(Kokkos::View<double*, Kokkos::HostSpace> &data, const std::stri
   }
   write_out.close();
 }
+
+// void write_state(Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::HostSpace> &data, const std::string path, const std::string additional, const int prec) {
+//   std::ofstream write_out(path + additional, std::ofstream::out | std::ofstream::trunc);
+//   for (int i = 0; i < data.extent_int(0); i++) { // write out state
+//     write_out << std::setprecision(prec) << data(i) << "\n";
+//   }
+//   write_out.close();
+// }

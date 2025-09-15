@@ -1,6 +1,5 @@
 #include <Kokkos_Core.hpp>
 #include <mpi.h>
-#include <iostream>
 
 #include "run_config.hpp"
 #include "mpi_utils.hpp"
@@ -29,11 +28,6 @@ void direct_sum_inv_lap(const RunConfig& run_config, Kokkos::View<double*> xcos,
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {run_config.oned_lb, 0},{run_config.oned_ub, run_config.point_count}), inv_lap(xcos, ycos, zcos, area, pots, soln));
 	Kokkos::fence();
 
-	// MPI_Win soln_win;
-	// MPI_Win_create(&soln(0), run_config.point_count * sizeof(double), sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &soln_win);
-	// sync_updates<double>(soln, run_config.mpi_p, run_config.mpi_id, &soln_win, MPI_DOUBLE);
-	// MPI_Win_free(&soln_win);
-	// std::cout << soln.extent_int(0) << std::endl;
-	// MPI_Allreduce(&soln(0), &soln(0), soln.extent_int(0), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	// MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Allreduce(MPI_IN_PLACE, &soln(0), run_config.point_count, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
 }

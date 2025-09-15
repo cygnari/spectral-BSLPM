@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 	std::chrono::steady_clock::time_point begin, end;
 	begin = std::chrono::steady_clock::now();
 
-	// MPI_Buffer_attach(malloc(run_config.point_count * sizeof(double)), run_config.point_count * sizeof(double));
+	// MPI_Buffer_attach(malloc(2*run_config.point_count * sizeof(double)), 2*run_config.point_count * sizeof(double));
 
 	Kokkos::initialize(argc, argv);
 	{
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<double*, Kokkos::HostSpace> zcos ("z coordinates", run_config.point_count);
 		Kokkos::View<double*, Kokkos::HostSpace> area ("point areas", run_config.point_count);
 		Kokkos::View<double*, Kokkos::HostSpace> pots ("potentials", run_config.point_count);
-		// Kokkos::View<double*, Kokkos::HostSpace> soln ("solution", run_config.point_count);
+		Kokkos::View<double*, Kokkos::HostSpace> soln ("solution", run_config.point_count);
 
 		cubed_sphere_midpoints(run_config, xcos, ycos, zcos, area);
 
@@ -80,6 +80,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		// before this is on host
+		
 		begin = std::chrono::steady_clock::now();
 
 		// move to device if available
@@ -100,16 +101,8 @@ int main(int argc, char* argv[]) {
 
 		Kokkos::fence();
 
-		// copy back to host
-		auto soln = Kokkos::create_mirror_view(Kokkos::HostSpace(), d_soln);
+		// move back to host
 		Kokkos::deep_copy(soln, d_soln);
-
-		// MPI_Allreduce(soln.data(), soln.data(), run_config.point_count, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-		// MPI_Barrier(MPI_COMM_WORLD);
-		// MPI_Win soln_win;
-		// MPI_Win_create(&soln(0), run_config.point_count * sizeof(double), sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &soln_win);
-		// sync_updates<double>(soln, run_config.mpi_p, run_config.mpi_id, &soln_win, MPI_DOUBLE);
-		// MPI_Win_free(&soln_win);
 
 		Kokkos::fence();
 		MPI_Barrier(MPI_COMM_WORLD);
