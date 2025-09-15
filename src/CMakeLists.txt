@@ -13,6 +13,8 @@ target_include_directories(specBSLPM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
   $<INSTALL_INTERFACE:include>)
 
+set_property(TARGET specBSLPM PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 install(FILES
     # all FastSphereSums header/include files go here
     ${CMAKE_BINARY_DIR}/specBSLPM-config.h
