@@ -4,9 +4,9 @@
 double sphere_tri_area(const double* p1, const double* p2, const double* p3) {
 	double p1n[3], p2n[3], p3n[3];
 	double a, b, c, s, z, area;
-	memcpy(p1n, p1, 3 * sizeof(double));
-	memcpy(p2n, p2, 3 * sizeof(double));
-	memcpy(p3n, p3, 3 * sizeof(double));
+	std::memcpy(p1n, p1, 3 * sizeof(double));
+	std::memcpy(p2n, p2, 3 * sizeof(double));
+	std::memcpy(p3n, p3, 3 * sizeof(double));
 	p2n[0] -= p3[0], p2n[1] -= p3[1], p2n[2] -= p3[2];
 	p3n[0] -= p1[0], p3n[1] -= p1[1], p3n[2] -= p1[2];
 	p1n[0] -= p2[0], p1n[1] -= p2[1], p1n[2] -= p2[2];
