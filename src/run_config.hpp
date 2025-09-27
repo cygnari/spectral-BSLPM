@@ -8,7 +8,10 @@ struct RunConfig {
 	int write_precision = 6; // 6 for data viz, 16 for error testing
 	bool write_output = false;
 	int point_count; // number of dynamics points
+	int panel_count; // number of panels in the cubed sphere tree
+	int active_panel_count; // number of panels used in the quadrature
 	int levels; // base refinement level of the cubed sphere
+	int* cubed_sphere_level_start; // start location of cubed sphere panels of each level
 	int interp_degree; // interpolation degree to use
 	int tracer_count;
 	int end_time; // end time in seconds, 86400 = 1 day
@@ -18,6 +21,7 @@ struct RunConfig {
 	bool balance_ic = true; // enforce int_S vor = 0
 	double fmm_theta = 0.7; // parameter for well separated threshold
 	int fmm_cluster_thresh; // threshold to treat a panel as a cluster
+	int fmm_interaction_count;
 
 	// mpi info
 	int mpi_p; // total number of MPI ranks

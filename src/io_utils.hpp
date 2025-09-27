@@ -10,6 +10,4 @@ void read_run_config(const std::string file_name, RunConfig& run_config);
 
 void write_state(Kokkos::View<double*, Kokkos::HostSpace> &data, const std::string path, const std::string additional, const int prec);
 
-// void write_state(Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::HostSpace> &data, const std::string path, const std::string additional, const int prec);
-
 #endif

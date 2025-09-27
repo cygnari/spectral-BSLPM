@@ -12,16 +12,16 @@ void bounds_determine_1d(RunConfig& run_information, const int P, const int ID) 
 	int gap = run_information.point_count - total;
 	for (int i = 1; i < gap + 1; i++) {
 		particles[i] += 1;
-		}
-			total = 0;
-			for (int i = 0; i < P; i++) {
-			total += particles[i];
-		}
+	}
+	total = 0;
+	for (int i = 0; i < P; i++) {
+		total += particles[i];
+	}
 
-		assertm(total == run_information.point_count, "Particle count not correct");
+	assertm(total == run_information.point_count, "Particle count not correct");
 
-		ub[0] = particles[0];
-		for (int i = 1; i < P; i++) {
+	ub[0] = particles[0];
+	for (int i = 1; i < P; i++) {
 		lb[i] = ub[i - 1];
 		ub[i] = lb[i] + particles[i];
 	}

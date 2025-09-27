@@ -11,3 +11,10 @@ target_include_directories(poisson_eq_ds PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>)
+
+add_executable(poisson_eq_fmm poisson_eq_fmm.cpp)
+target_link_libraries(poisson_eq_fmm PUBLIC specBSLPM)
+target_include_directories(poisson_eq_fmm PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:include>)

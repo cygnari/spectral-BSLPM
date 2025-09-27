@@ -1,6 +1,8 @@
 #ifndef H_CUBE_SPHERE_TRANSFORMS_H
 #define H_CUBE_SPHERE_TRANSFORMS_H
 
+double cubed_sphere_jac(double xi, double eta);
+
 int face_from_xyz(const double x, const double y, const double z);
 
 void xyz_from_xieta(const double xi, const double eta, const int face, double* xyz);

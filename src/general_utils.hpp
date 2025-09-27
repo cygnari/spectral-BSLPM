@@ -3,4 +3,6 @@
 
 double sphere_tri_area(const double* p1, const double* p2, const double* p3);
 
+double gcdist(const double* p1, const double* p2);
+
 #endif

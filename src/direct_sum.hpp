@@ -5,6 +5,9 @@
 
 #include "run_config.hpp"
 
-void direct_sum_inv_lap(const RunConfig& run_config, Kokkos::View<double*> xcos, Kokkos::View<double*> ycos, Kokkos::View<double*> zcos, Kokkos::View<double*> area, Kokkos::View<double*> pots, Kokkos::View<double*> soln);
+void direct_sum_inv_lap(const RunConfig& run_config, Kokkos::View<double*> xcos, 
+						Kokkos::View<double*> ycos, Kokkos::View<double*> zcos, 
+						Kokkos::View<double*> area, Kokkos::View<double*> pots, 
+						Kokkos::View<double*> soln);
 
 #endif

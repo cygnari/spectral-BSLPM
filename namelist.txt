@@ -1,10 +1,11 @@
 out_path=../../run-output/
 write_precision=16
 write_output=1
-levels=5
-interp_degree=6
+levels=7
+interp_degree=2
 end_time=86400
 delta_t=864
 initial_condition=sh43
 balance_ic=0
+theta=0.7
 end

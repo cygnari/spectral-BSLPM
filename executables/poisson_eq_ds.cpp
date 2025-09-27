@@ -44,8 +44,6 @@ int main(int argc, char* argv[]) {
 	std::chrono::steady_clock::time_point begin, end;
 	begin = std::chrono::steady_clock::now();
 
-	// MPI_Buffer_attach(malloc(2*run_config.point_count * sizeof(double)), 2*run_config.point_count * sizeof(double));
-
 	Kokkos::initialize(argc, argv);
 	{
 		int num_kokkos_threads = Kokkos::num_threads();
@@ -85,11 +83,11 @@ int main(int argc, char* argv[]) {
 
 		// move to device if available
 
-		auto d_xcos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), xcos);
-		auto d_ycos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), ycos);
-		auto d_zcos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), zcos);
-		auto d_area = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), area);
-		auto d_pots = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), pots);
+		Kokkos::View<double*> d_xcos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), xcos);
+		Kokkos::View<double*> d_ycos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), ycos);
+		Kokkos::View<double*> d_zcos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), zcos);
+		Kokkos::View<double*> d_area = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), area);
+		Kokkos::View<double*> d_pots = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), pots);
 		Kokkos::deep_copy(d_xcos, xcos);
 		Kokkos::deep_copy(d_ycos, ycos);
 		Kokkos::deep_copy(d_zcos, zcos);
