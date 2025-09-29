@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 
 double sphere_tri_area(const double* p1, const double* p2, const double* p3) {
 	double p1n[3], p2n[3], p3n[3];

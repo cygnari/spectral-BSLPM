@@ -46,6 +46,10 @@ int main(int argc, char* argv[]) {
 
 	Kokkos::initialize(argc, argv);
 	{
+		if (run_config.mpi_id == 0) {
+			std::cout << "kokkos num threads: " << Kokkos::num_threads() << ", Kokkos num devices: " << Kokkos::num_devices() << std::endl;
+		}
+
 		int num_kokkos_threads = Kokkos::num_threads();
 
 		Kokkos::View<double*, Kokkos::HostSpace> xcos ("x coordinates", run_config.point_count);
