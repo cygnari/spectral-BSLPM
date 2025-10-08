@@ -5,8 +5,10 @@
 #include "run_config.hpp"
 #include "fmm_funcs.hpp"
 #include "initialize_cubed_sphere.hpp"
+#include "cubed_sphere_transforms.hpp"
 #include "cubed_sphere_transforms_impl.hpp"
 #include "general_utils.hpp"
+#include "interp_funcs.hpp"
 #include "interp_funcs_impl.hpp"
 
 void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, 
@@ -17,10 +19,10 @@ void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, 
 	std::queue<int> target_squares;
 	std::queue<int> source_squares;
 	// top level interactions
-	// int ub = 6;
-	// int lb = 0;
-	int ub = run_config.panel_count;
-	int lb = run_config.panel_count - run_config.active_panel_count;
+	int ub = 6;
+	int lb = 0;
+	// int ub = run_config.panel_count;
+	// int lb = run_config.panel_count - run_config.active_panel_count;
 	for (int i = lb; i < ub; i++) {
 		for (int j = lb; j < ub; j++) {
 			target_squares.push(i);

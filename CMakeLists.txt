@@ -36,6 +36,7 @@ endif()
 find_package(MPI REQUIRED COMPONENTS C)
 find_package(Kokkos REQUIRED CONFIG)
 find_package(LAPACK REQUIRED)
+find_package(KokkosKernels REQUIRED)
 
 add_subdirectory(src)
 add_subdirectory(executables)

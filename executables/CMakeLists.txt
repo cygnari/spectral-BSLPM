@@ -18,3 +18,10 @@ target_include_directories(poisson_eq_fmm PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>)
+
+add_executable(deriv_test deriv_test.cpp)
+target_link_libraries(deriv_test PUBLIC specBSLPM)
+target_include_directories(deriv_test PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:include>)

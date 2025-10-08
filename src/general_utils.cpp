@@ -24,3 +24,25 @@ double gcdist(const double* p1, const double* p2) {
 	double dp = std::max(std::min(p1[0] * p2[0] + p1[1] * p2[1] + p1[2] * p2[2], 1.0), -1.0);
 	return acos(dp);
 }
+
+void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double x, const double y, const double z) {
+	double sqc = sqrt(x*x+y*y);
+	x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;
+	y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
+	z_comp = -sqc*colat_comp;
+}
+
+void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double lon, const double colat) {
+	double coslon = cos(lon);
+	double sincolat = sin(colat);
+	double coscolat = cos(colat);
+	x_comp = coslon * coscolat * colat_comp - sincolat * lon_comp;
+	y_comp = coslon * sincolat * colat_comp + coscolat * lon_comp;
+	z_comp = sin(lon) * colat_comp; 
+}
+
+void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double x_comp, const double y_comp, const double z_comp, const double x, const double y, const double z) {
+	double sqc = sqrt(x*x+y*y);
+	lon_comp = 1.0/sqc * (-y*x_comp + x*y_comp);
+	colat_comp = z/sqc*(x*x_comp + y*y_comp) - sqc*z_comp;
+}

@@ -28,7 +28,7 @@ inline double gcdist_device(const double* p1, const double* p2) {
 
 inline double dilog(const double x) {
 	// adapted from https://github.com/Expander/polylogarithm by Alexander Voigt
-	const double pi2 = pow(M_PI, 2);
+	const double pi2 = Kokkos::pow(Kokkos::numbers::pi, 2);
 	const double P[] = {
 	  0.9999999999999999502e+0,
 	  -2.6883926818565423430e+0,
@@ -57,10 +57,10 @@ inline double dilog(const double x) {
 	 r = 0;
 	 s = 1;
 	} else if (x == 1) {
-	 return pi2 / 12.0 - 0.5*pow(log(2), 2);
+	 return pi2 / 12.0 - 0.5*Kokkos::pow(Kokkos::log(2), 2);
 	} else if (x < 1) {
 	 y = 1 - x;
-	 r = pi2/6.0 - log(x)*log(y);
+	 r = pi2/6.0 - Kokkos::log(x)*Kokkos::log(y);
 	 s = -1;
 	} else {
 	 return pi2 / 6.0;
@@ -74,6 +74,28 @@ inline double dilog(const double x) {
 	                y4 * (Q[4] + y * Q[5] + y2 * Q[6]);
 
 	return r + s*y*p/q;
+}
+
+inline void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double x, const double y, const double z) {
+	double sqc = Kokkos::sqrt(x*x+y*y);
+	x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;
+	y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
+	z_comp = -sqc*colat_comp;
+}
+
+inline void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double lon, const double colat) {
+	double coslon = Kokkos::cos(lon);
+	double sincolat = Kokkos::sin(colat);
+	double coscolat = Kokkos::cos(colat);
+	x_comp = coslon * coscolat * colat_comp - sincolat * lon_comp;
+	y_comp = coslon * sincolat * colat_comp + coscolat * lon_comp;
+	z_comp = Kokkos::sin(lon) * colat_comp; 
+}
+
+inline void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double x_comp, const double y_comp, const double z_comp, const double x, const double y, const double z) {
+	double sqc = Kokkos::sqrt(x*x+y*y);
+	lon_comp = 1.0/sqc * (-y*x_comp + x*y_comp);
+	colat_comp = z/sqc*(x*x_comp + y*y_comp) - sqc*z_comp;
 }
 
 #endif

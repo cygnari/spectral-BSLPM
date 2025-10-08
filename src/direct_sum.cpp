@@ -20,6 +20,7 @@ struct inv_lap {
 	void operator()(const int i, const int j) const {
 		if (i != j) {
 			double dp = xcos(i) * xcos(j) + ycos(i) * ycos(j) + zcos(i) * zcos(j);
+			// constant is -1/(4pi)
 			Kokkos::atomic_add(&soln(i), -0.07957747154594767 * Kokkos::log(1-dp) * area(j) * pots(j));
 		}
 	}

@@ -43,7 +43,7 @@ struct poisson_panel_interaction {
 				eta_s = interp_vals(k,1) * eta_scale_s + eta_off_s;
 				xyz_from_xieta(xi_s, eta_s, cubed_sphere_panels(source_panel).face, xyz_s);
 				dp = xyz_t[0] * xyz_s[0] + xyz_t[1] * xyz_s[1] + xyz_t[2] * xyz_s[2];
-				if (dp < 1.0 - 1e-15) {
+				if (dp < 1.0 - 1e-15) { // constant is -1/(4pi)
 					Kokkos::atomic_add(&target_pots(target_panel, j), -0.07957747154594767 * Kokkos::log(1-dp) * source_vals(source_panel, k));
 				} 
 				// else {

@@ -24,6 +24,7 @@ struct CubedSpherePanel {
 	double min_eta;
 	double max_eta;
 	double radius;
+	double area;
 };
 
 void cubed_sphere_midpoints(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& xcos, 

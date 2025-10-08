@@ -34,6 +34,20 @@ void poisson_initialize(const RunConfig& run_config, Kokkos::View<double*, Kokko
 	Kokkos::fence();
 }
 
+struct ones_2{
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> potential;
+
+	ones_2(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& potential_) : potential(potential_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i) const {
+		int jmax = potential.extent_int(1);
+		for (int j = 0; j < jmax; j++) {
+			potential(i,j) = 1.0;
+		}
+	}
+};
+
 struct sh43_2{
 	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
 	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
@@ -53,8 +67,57 @@ struct sh43_2{
 		for (int j = 0; j < jmax; j++) {
 			x = xcos(i, j);
 			y = ycos(i, j);
-			// std::cout << x << " " << y << " " << zcos(i,j) << " " << 1.770130769779931*x*(x*x-3.0*y*y)*zcos(i, j) << std::endl;
 			potential(i, j) = 1.770130769779931*x*(x*x-3.0*y*y)*zcos(i, j); // constant is 3.0/4.0*sqrt(35.0/(2.0*M_PI))
+		}
+	}
+};
+
+struct coslon_2{
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> potential;
+
+	coslon_2(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& potential_) :
+		xcos(xcos_), ycos(ycos_), zcos(zcos_), potential(potential_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i) const {
+		int jmax = xcos.extent_int(1);
+		double theta, x, y;
+		for (int j = 0; j < jmax; j++) {
+			x = xcos(i, j);
+			y = ycos(i, j);
+			theta = Kokkos::atan2(y,x);
+			potential(i,j) = Kokkos::cos(theta);
+		}
+	}
+};
+
+struct sinlat_2{
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> potential;
+
+	sinlat_2(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& potential_) :
+		xcos(xcos_), ycos(ycos_), zcos(zcos_), potential(potential_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i) const {
+		int jmax = xcos.extent_int(1);
+		double theta, x, y;
+		for (int j = 0; j < jmax; j++) {
+			x = xcos(i, j);
+			y = ycos(i, j);
+			theta = Kokkos::atan2(Kokkos::sqrt(x*x+y*y),zcos(i,j));
+			potential(i,j) = Kokkos::sin(Kokkos::numbers::pi/2.0-theta);
 		}
 	}
 };
@@ -66,6 +129,15 @@ void poisson_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokk
 	if (run_config.initial_condition == "sh43") {
 		Kokkos::parallel_for(
 			Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), sh43_2(xcos, ycos, zcos, potential));
+	} else if (run_config.initial_condition == "ones") {
+		Kokkos::parallel_for(
+			Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), ones_2(potential));
+	} else if (run_config.initial_condition == "coslon") {
+		Kokkos::parallel_for(
+			Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), coslon_2(xcos, ycos, zcos, potential));
+	} else if (run_config.initial_condition == "sinlat") {
+		Kokkos::parallel_for(
+			Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), sinlat_2(xcos, ycos, zcos, potential));
 	}
 	Kokkos::fence();
 }

@@ -1,6 +1,7 @@
 add_library(specBSLPM
     fmm_interactions/inverse_poisson.cpp
     cubed_sphere_transforms.cpp
+    deriv_funcs.cpp
     direct_sum.cpp
     fmm_funcs.cpp
     general_utils.cpp
@@ -10,7 +11,7 @@ add_library(specBSLPM
     io_utils.cpp
     mpi_utils.cpp)
 
-target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos)
+target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels)
 target_include_directories(specBSLPM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
@@ -24,6 +25,8 @@ install(FILES
     fmm_interactions/inverse_poisson.hpp
     cubed_sphere_transforms.hpp
     cubed_sphere_transforms_impl.hpp
+    deriv_funcs.hpp
+    deriv_funcs_impl.hpp
     direct_sum.hpp
     fmm_funcs.hpp
     general_utils.hpp
