@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <queue>
 #include <iostream>
+#include <vector>
 
 #include "run_config.hpp"
 #include "fmm_funcs.hpp"
@@ -13,7 +14,8 @@
 
 void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, 
 							Kokkos::View<interact_pair*, Kokkos::HostSpace>& interaction_list) {
-	Kokkos::View<interact_pair*, Kokkos::HostSpace> temp_interaction_list ("temp interaction list", pow(run_config.active_panel_count, 2));
+	// Kokkos::View<interact_pair*, Kokkos::HostSpace> temp_interaction_list ("temp interaction list", pow(run_config.active_panel_count, 2));
+	std::vector<interact_pair> temp_interaction_list;
 	int interaction_count = 0;
 
 	std::queue<int> target_squares;
@@ -59,14 +61,16 @@ void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, 
 			if (cubed_sphere_panels(index_source).level < run_config.levels - 1) {
 				new_interact.interact_type += 1;
 			}
-			temp_interaction_list(interaction_count) = new_interact;
+			// temp_interaction_list(interaction_count) = new_interact;
+			temp_interaction_list.push_back(new_interact);
 			interaction_count += 1;
 		} else {
 			// not well separated, split up panel at higher level, preferentially split target
 			if (cubed_sphere_panels(index_target).is_leaf and cubed_sphere_panels(index_source).is_leaf) {
 				// both are leaf panels
 				interact_pair new_interact {index_target, index_source, 0};
-				temp_interaction_list(interaction_count) = new_interact;
+				// temp_interaction_list(interaction_count) = new_interact;
+				temp_interaction_list.push_back(new_interact);
 				interaction_count += 1;
 			} else if (cubed_sphere_panels(index_target).is_leaf) {
 				// target is leaf, break up source
@@ -114,9 +118,12 @@ void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, 
 		}
 	}	
 
-	resize(temp_interaction_list, interaction_count);
+	// resize(temp_interaction_list, interaction_count);
 	resize(interaction_list, interaction_count);
-	Kokkos::deep_copy(interaction_list, temp_interaction_list);
+	// Kokkos::deep_copy(interaction_list, temp_interaction_list);
+	for (int i = 0; i < interaction_count; i++) {
+		interaction_list(i) = temp_interaction_list[i];
+	}
 	run_config.fmm_interaction_count = interaction_count;
 }
 
