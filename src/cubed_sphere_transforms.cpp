@@ -6,9 +6,9 @@ double cubed_sphere_jac(double xi, double eta) {
 }
 
 int face_from_xyz(const double x, const double y, const double z) {
-	double ax = abs(x);
-	double ay = abs(y);
-	double az = abs(z);
+	double ax = std::abs(x);
+	double ay = std::abs(y);
+	double az = std::abs(z);
 	if ((ax >= ay) and (ax >= az)) {
 	  if (x >= 0) {
 	    return 1;
@@ -63,9 +63,9 @@ void xyz_from_xieta(const double xi, const double eta, const int face, double* x
 }
 
 void xieta_from_xyz(const double x, const double y, const double z, double* xieta) {
-	double ax = abs(x);
-	double ay = abs(y);
-	double az = abs(z);
+	double ax = std::abs(x);
+	double ay = std::abs(y);
+	double az = std::abs(z);
 
 	if ((ax >= ay) and (ax >= az)) {
 	  if (x >= 0) {
@@ -168,7 +168,7 @@ void xyzvec_from_xietavec(double& x_comp, double& y_comp, double& z_comp, const 
 		y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
 		z_comp = -sqc*colat_comp;
 	} else if (face == 5) {
-		if ((abs(xi) < 1e-16) and (abs(eta) < 1e-16)) {
+		if ((std::abs(xi) < 1e-16) and (std::abs(eta) < 1e-16)) {
 			// close to north pole
 			z_comp = 0;
 			x_comp = grad_xi_comp;
@@ -182,7 +182,7 @@ void xyzvec_from_xietavec(double& x_comp, double& y_comp, double& z_comp, const 
 			z_comp = -sqc*colat_comp;
 		}
 	} else if (face == 6) {
-		if ((abs(xi) < 1e-16) and (abs(eta) < 1e-16)) {
+		if ((std::abs(xi) < 1e-16) and (std::abs(eta) < 1e-16)) {
 			// close to south pole
 			z_comp = 0;
 			x_comp = grad_xi_comp;
