@@ -1,5 +1,4 @@
 #include <Kokkos_Core.hpp>
-#include <iostream>
 
 #include "run_config.hpp"
 #include "fmm_funcs.hpp"
@@ -67,23 +66,14 @@ void poisson_fmm_interactions(const RunConfig& run_config, Kokkos::View<double**
 	}
 	lbs[0] = 0;
 	ubs[0] = ints[0];
-	// std::cout << lbs[0] << " " << ubs[0] << std::endl;;
 	for (int i = 1; i < run_config.mpi_p; i++) {
-		
 		lbs[i] = ubs[i-1];
 		ubs[i] = lbs[i] + ints[i];
-		// std::cout << lbs[i] << " " << ubs[i] << std::endl;
 	}
 	int lb, ub;
-	// lb = lbs[run_config.mpi_id];
-	// ub = ubs[run_config.mpi_id];
-	if (run_config.mpi_id == 0) {
-		for (int i = 0; i < run_config.mpi_p; i++) {
-			std::cout << lbs[i] << " " << ubs[i] << std::endl;
-		}
-	}
+	lb = lbs[run_config.mpi_id];
+	ub = ubs[run_config.mpi_id];
 
-	// std::cout << run_config.mpi_p << " " << run_config.mpi_id << " " << lb << " " << ub << std::endl;
 	Kokkos::parallel_for(Kokkos::RangePolicy(lb, ub), poisson_panel_interaction(target_pots, source_vals, interp_vals, cubed_sphere_panels, interaction_list));
 	Kokkos::fence();
 }
