@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace> cubed_sphere_panels ("cubed sphere panels", run_config.panel_count);
 		
 		cubed_sphere_panels_init(run_config, cubed_sphere_panels);
-		std::cout << "leaf level panels: " << run_config.active_panel_count << std::endl;
+		
 		run_config.point_count = run_config.active_panel_count * pow(run_config.interp_degree, 2) + 2;
 
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> interp_vals ("interp vals", pow(run_config.interp_degree+1, 2), 4);
@@ -67,6 +67,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (run_config.mpi_id == 0) {
+			std::cout << "leaf level panels: " << run_config.active_panel_count << std::endl;
 			std::cout << "area discrepancy from 4pi: " << total_area - 4 * M_PI << std::endl;
 		}
 
