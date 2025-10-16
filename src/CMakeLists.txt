@@ -1,5 +1,6 @@
 add_library(specBSLPM
     fmm_interactions/inverse_poisson.cpp
+    fmm_interactions/bve_vel.cpp
     cubed_sphere_transforms.cpp
     deriv_funcs.cpp
     direct_sum.cpp
@@ -11,7 +12,8 @@ add_library(specBSLPM
     io_utils.cpp
     mpi_utils.cpp)
 
-target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels)
+#target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels)
+target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos)
 target_include_directories(specBSLPM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
@@ -23,12 +25,17 @@ install(FILES
     # all FastSphereSums header/include files go here
     ${CMAKE_BINARY_DIR}/specBSLPM-config.h
     fmm_interactions/inverse_poisson.hpp
+    fmm_interactions/inverse_poisson_impl.hpp
+    fmm_interactions/bve_vel.hpp
+    fmm_interactions/bve_vel_impl.hpp
     cubed_sphere_transforms.hpp
     cubed_sphere_transforms_impl.hpp
     deriv_funcs.hpp
     deriv_funcs_impl.hpp
     direct_sum.hpp
+    direct_sum_impl.hpp
     fmm_funcs.hpp
+    fmm_funcs_impl.hpp
     general_utils.hpp
     general_utils_impl.hpp
     initial_conditions.hpp

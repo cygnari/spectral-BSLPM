@@ -3,7 +3,8 @@
 
 #include "Kokkos_Core.hpp"
 
-inline double sphere_tri_area_device(const double* p1, const double* p2, const double* p3) {
+KOKKOS_INLINE_FUNCTION
+double sphere_tri_area_device(const double* p1, const double* p2, const double* p3) {
 	double p1n[3], p2n[3], p3n[3];
 	double a, b, c, s, z, area;
 	p1n[0] = p1[0], p1n[1]=p1[1], p1n[2]=p1[2];
@@ -21,12 +22,14 @@ inline double sphere_tri_area_device(const double* p1, const double* p2, const d
 	return area;
 }
 
-inline double gcdist_device(const double* p1, const double* p2) {
+KOKKOS_INLINE_FUNCTION 
+double gcdist(const double* p1, const double* p2) {
 	double dp = Kokkos::fmax(Kokkos::fmin(p1[0] * p2[0] + p1[1] * p2[1] + p1[2] * p2[2], 1.0), -1.0);
 	return Kokkos::acos(dp);
 }
 
-inline double dilog(const double x) {
+KOKKOS_INLINE_FUNCTION 
+double dilog(const double x) {
 	// adapted from https://github.com/Expander/polylogarithm by Alexander Voigt
 	const double pi2 = Kokkos::pow(Kokkos::numbers::pi, 2);
 	const double P[] = {
@@ -76,14 +79,16 @@ inline double dilog(const double x) {
 	return r + s*y*p/q;
 }
 
-inline void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double x, const double y, const double z) {
+KOKKOS_INLINE_FUNCTION 
+void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double x, const double y, const double z) {
 	double sqc = Kokkos::sqrt(x*x+y*y);
 	x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;
 	y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
 	z_comp = -sqc*colat_comp;
 }
 
-inline void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double lon, const double colat) {
+KOKKOS_INLINE_FUNCTION 
+void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double lon, const double colat) {
 	double coslon = Kokkos::cos(lon);
 	double sincolat = Kokkos::sin(colat);
 	double coscolat = Kokkos::cos(colat);
@@ -92,7 +97,8 @@ inline void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_co
 	z_comp = Kokkos::sin(lon) * colat_comp; 
 }
 
-inline void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double x_comp, const double y_comp, const double z_comp, const double x, const double y, const double z) {
+KOKKOS_INLINE_FUNCTION 
+void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double x_comp, const double y_comp, const double z_comp, const double x, const double y, const double z) {
 	double sqc = Kokkos::sqrt(x*x+y*y);
 	lon_comp = 1.0/sqc * (-y*x_comp + x*y_comp);
 	colat_comp = z/sqc*(x*x_comp + y*y_comp) - sqc*z_comp;

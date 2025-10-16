@@ -14,4 +14,7 @@ void xyz_gradient(const RunConfig& run_config, Kokkos::View<double**, Kokkos::La
 					Kokkos::View<double**, Kokkos::LayoutRight>& y_comps, Kokkos::View<double**, Kokkos::LayoutRight>& z_comps, 
 					Kokkos::View<double**, Kokkos::LayoutRight>& func_vals, Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels);
 
+void laplacian(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& laplacian_vals, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& func_vals, Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels);
+
 #endif

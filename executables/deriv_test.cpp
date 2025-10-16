@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> grad_x ("x grad", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> grad_y ("y grad", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> grad_z ("z grad", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
+		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> lap ("laplacian", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 
 		cube_sphere_spec_points(run_config, cubed_sphere_panels, interp_vals, xcos, ycos, zcos, area);
 
@@ -84,6 +85,7 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<double**, Kokkos::LayoutRight> d_grad_x ("device x grad", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_grad_y ("device y grad", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_grad_z ("device z grad", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
+		Kokkos::View<double**, Kokkos::LayoutRight> d_lap ("device laplacian", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<CubedSpherePanel*> d_cubed_sphere_panels ("device cubed sphere panels", run_config.panel_count);
 		Kokkos::View<interact_pair*> d_interaction_list("device interaction list", run_config.fmm_interaction_count);
 
@@ -94,12 +96,15 @@ int main(int argc, char* argv[]) {
 		Kokkos::deep_copy(d_cubed_sphere_panels, cubed_sphere_panels);
 		
 		xyz_gradient(run_config, d_grad_x, d_grad_y, d_grad_z, d_pots, d_cubed_sphere_panels);
+		laplacian(run_config, d_lap, d_pots, d_cubed_sphere_panels);
+		// std::cout << d_lap(0,0) << std::endl;
 
 		// back to host
 		// Kokkos::deep_copy(soln, d_soln);
 		Kokkos::deep_copy(grad_x, d_grad_x);
 		Kokkos::deep_copy(grad_y, d_grad_y);
 		Kokkos::deep_copy(grad_z, d_grad_z);
+		Kokkos::deep_copy(lap, d_lap);
 		Kokkos::fence();
 		MPI_Barrier(MPI_COMM_WORLD);
 		// end = std::chrono::steady_clock::now();
@@ -111,6 +116,7 @@ int main(int argc, char* argv[]) {
 		MPI_Allreduce(MPI_IN_PLACE, &grad_x(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 		MPI_Allreduce(MPI_IN_PLACE, &grad_y(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 		MPI_Allreduce(MPI_IN_PLACE, &grad_z(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		MPI_Allreduce(MPI_IN_PLACE, &lap(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 		MPI_Barrier(MPI_COMM_WORLD);
 		// end = std::chrono::steady_clock::now();
@@ -129,6 +135,7 @@ int main(int argc, char* argv[]) {
 			Kokkos::View<double*, Kokkos::HostSpace> grad_x_1d ("1d grad x", run_config.point_count);
 			Kokkos::View<double*, Kokkos::HostSpace> grad_y_1d ("1d grad y", run_config.point_count);
 			Kokkos::View<double*, Kokkos::HostSpace> grad_z_1d ("1d grad z", run_config.point_count);
+			Kokkos::View<double*, Kokkos::HostSpace> lap_1d ("1d grad z", run_config.point_count);
 
 			Kokkos::View<int*, Kokkos::HostSpace> one_d_no_of_points ("number of points collapsed", run_config.point_count);
 
@@ -138,6 +145,7 @@ int main(int argc, char* argv[]) {
 			solution_2d_to_1d(run_config, area_1d, pots_1d, grad_x_1d, area, pots, grad_x, one_d_no_of_points, two_d_to_1d);
 			solution_2d_to_1d(run_config, area_1d, pots_1d, grad_y_1d, area, pots, grad_y, one_d_no_of_points, two_d_to_1d);
 			solution_2d_to_1d(run_config, area_1d, pots_1d, grad_z_1d, area, pots, grad_z, one_d_no_of_points, two_d_to_1d);
+			solution_2d_to_1d(run_config, area_1d, pots_1d, lap_1d, area, pots, lap, one_d_no_of_points, two_d_to_1d);
 
 			if (run_config.mpi_id == 0) {
 				std::string output_folder = std::to_string(run_config.point_count) + "_"+ std::to_string(run_config.levels) +"_" + std::to_string(run_config.interp_degree) + std::string("_grad_") + run_config.initial_condition;
@@ -152,6 +160,7 @@ int main(int argc, char* argv[]) {
 				write_state(grad_x_1d, outpath, "grad_x.csv", run_config.write_precision);
 				write_state(grad_y_1d, outpath, "grad_y.csv", run_config.write_precision);
 				write_state(grad_z_1d, outpath, "grad_z.csv", run_config.write_precision);
+				write_state(lap_1d, outpath, "lap.csv", run_config.write_precision);
 			}
 		}
 		end = std::chrono::steady_clock::now();

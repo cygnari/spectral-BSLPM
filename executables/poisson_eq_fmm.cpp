@@ -39,6 +39,11 @@ int main(int argc, char* argv[]) {
 
 	Kokkos::initialize(argc, argv);
 	{
+		if (run_config.mpi_id == 0) {
+			std::cout << "mpi ranks: " << P << std::endl;
+			std::cout << "kokkos num threads: " << Kokkos::num_threads() << ", Kokkos num devices: " << Kokkos::num_devices() << std::endl;
+		}
+
 		Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace> cubed_sphere_panels ("cubed sphere panels", run_config.panel_count);
 		
 		cubed_sphere_panels_init(run_config, cubed_sphere_panels);

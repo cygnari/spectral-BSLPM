@@ -2,10 +2,10 @@
 #define H_CUBE_SPHERE_TRANSFORMS_IMPL_H
 
 #include <Kokkos_Core.hpp>
-#include <KokkosLapack_gesv.hpp>
+// #include <KokkosLapack_gesv.hpp>
 
-
-inline int face_from_xyz(const double x, const double y, const double z) {
+KOKKOS_INLINE_FUNCTION
+int face_from_xyz(const double x, const double y, const double z) {
 	double ax = Kokkos::abs(x);
 	double ay = Kokkos::abs(y);
 	double az = Kokkos::abs(z);
@@ -30,7 +30,8 @@ inline int face_from_xyz(const double x, const double y, const double z) {
 	}
 }
 
-inline void xyz_from_xieta(const double xi, const double eta, const int face, double* xyz) {
+KOKKOS_INLINE_FUNCTION
+void xyz_from_xieta(const double xi, const double eta, const int face, double* xyz) {
 	double X = Kokkos::tan(xi);
 	double Y = Kokkos::tan(eta);
 	if (face == 1) {
@@ -62,7 +63,8 @@ inline void xyz_from_xieta(const double xi, const double eta, const int face, do
 	}
 }
 
-inline void xieta_from_xyz(const double x, const double y, const double z, double* xieta) {
+KOKKOS_INLINE_FUNCTION
+void xieta_from_xyz(const double x, const double y, const double z, double* xieta) {
 	double ax = Kokkos::abs(x);
 	double ay = Kokkos::abs(y);
 	double az = Kokkos::abs(z);
@@ -94,7 +96,8 @@ inline void xieta_from_xyz(const double x, const double y, const double z, doubl
 	}
 }
 
-inline void xieta_from_xyz(const double x, const double y, const double z, const int face, double* xieta) {
+KOKKOS_INLINE_FUNCTION
+void xieta_from_xyz(const double x, const double y, const double z, const int face, double* xieta) {
 	if (face == 1) {
 		xieta[0] = Kokkos::atan(y/x);
 	    xieta[1] = Kokkos::atan(z/x);
@@ -118,7 +121,8 @@ inline void xieta_from_xyz(const double x, const double y, const double z, const
 	}
 }
 
-inline void loncolatvec_from_xietavec(double& lon_comp, double& colat_comp, const double xi_deriv, const double eta_deriv, const int face, const double xi, const double eta) {
+KOKKOS_INLINE_FUNCTION
+void loncolatvec_from_xietavec(double& lon_comp, double& colat_comp, const double xi_deriv, const double eta_deriv, const int face, const double xi, const double eta) {
 	lon_comp = 0;
 	colat_comp = 0;
 	double X = Kokkos::tan(xi);
@@ -144,7 +148,8 @@ inline void loncolatvec_from_xietavec(double& lon_comp, double& colat_comp, cons
 	}
 }
 
-inline void xyzvec_from_xietavec(double& x_comp, double& y_comp, double& z_comp, const double xi_deriv, const double eta_deriv, const int face, const double xi, const double eta) {
+KOKKOS_INLINE_FUNCTION
+void xyzvec_from_xietavec(double& x_comp, double& y_comp, double& z_comp, const double xi_deriv, const double eta_deriv, const int face, const double xi, const double eta) {
 	double lon_comp, colat_comp;
 	double X = Kokkos::tan(xi);
 	double Y = Kokkos::tan(eta);

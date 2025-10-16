@@ -3,7 +3,8 @@
 
 #include "run_config.hpp"
 
-inline void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, double max_xi, 
+KOKKOS_INLINE_FUNCTION 
+void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, double max_xi, 
 						double min_eta, double max_eta, int interp_deg) {
 	double cheb_xi[interp_deg+1], cheb_eta[interp_deg+1], bli_weights[interp_deg+1], xi_range, xi_offset, eta_range, eta_offset, val;
 	xi_range = 0.5*(max_xi - min_xi);
