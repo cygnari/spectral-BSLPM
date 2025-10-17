@@ -46,7 +46,8 @@ struct child_to_parent {
 	void operator()(const int k) const { // k is child panel index
 		int parent = cubed_sphere_panels(k).parent_id;
 		double min_xi, max_xi, min_eta, max_eta, xi, eta, xi_off, xi_scale, eta_off, eta_scale;
-		double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
+		// double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
+		double bli_vals[121];
 		min_xi = cubed_sphere_panels(parent).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(parent).max_xi * Kokkos::numbers::pi / 4.0;
 		min_eta = cubed_sphere_panels(parent).min_eta * Kokkos::numbers::pi / 4.0;
@@ -63,7 +64,7 @@ struct child_to_parent {
 				Kokkos::atomic_add(&proxy_source_pots(parent,j), bli_vals[j] * proxy_source_pots(k,i));
 			}
 		}
-		Kokkos::kokkos_free(bli_vals);
+		// Kokkos::kokkos_free(bli_vals);
 	}
 };
 
@@ -92,7 +93,8 @@ struct parent_to_child {
 		}
 		double min_xi, max_xi, min_eta, max_eta, xi, eta, xi_off, xi_scale, eta_off, eta_scale;
 		// double bli_vals[point_count];
-		double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
+		// double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
+		double bli_vals[121];
 		double val;
 		min_xi = cubed_sphere_panels(i).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(i).max_xi * Kokkos::numbers::pi / 4.0;
@@ -112,7 +114,7 @@ struct parent_to_child {
 				Kokkos::atomic_add(&proxy_target_pots(child,k), bli_vals[l]*proxy_target_pots(i,l));
 			}
 		}
-		Kokkos::kokkos_free(bli_vals);
+		// Kokkos::kokkos_free(bli_vals);
 	}
 };
 
@@ -145,7 +147,8 @@ struct parent_to_child_3 {
 		}
 		double min_xi, max_xi, min_eta, max_eta, xi, eta, xi_off, xi_scale, eta_off, eta_scale;
 		// double bli_vals[point_count];
-		double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
+		// double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
+		double bli_vals[121];
 		double val;
 		min_xi = cubed_sphere_panels(i).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(i).max_xi * Kokkos::numbers::pi / 4.0;
@@ -166,7 +169,7 @@ struct parent_to_child_3 {
 				Kokkos::atomic_add(&proxy_target_pots_3(child,k), bli_vals[l]*proxy_target_pots_3(i,l));
 			}
 		}
-		Kokkos::kokkos_free(bli_vals);
+		// Kokkos::kokkos_free(bli_vals);
 	}
 };
 
