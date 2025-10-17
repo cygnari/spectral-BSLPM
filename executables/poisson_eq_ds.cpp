@@ -105,6 +105,8 @@ int main(int argc, char* argv[]) {
 
 		// move back to host
 		Kokkos::deep_copy(soln, d_soln);
+		MPI_Allreduce(MPI_IN_PLACE, &soln(0), run_config.point_count, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
 
 		Kokkos::fence();
 		MPI_Barrier(MPI_COMM_WORLD);
