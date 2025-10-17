@@ -115,20 +115,15 @@ struct panel_gradient {
 		double xi_scale = 0.5*(max_xi - min_xi);
 		double eta_offset = 0.5*(min_eta + max_eta);
 		double eta_scale = 0.5*(max_eta - min_eta);
-		int pc = (degree+1) * (degree+1);
 		bli_deriv_xi(&xi_derivs_workspace(i-offset,0), &func_vals(i-offset,0), degree, min_xi, max_xi);
 		bli_deriv_eta(&eta_derivs_workspace(i-offset,0), &func_vals(i-offset, 0), degree, min_eta, max_eta);
-		double cheb_points[degree+1];
-		for (int j = 0; j < degree+1; j++) {
-			cheb_points[j] = Kokkos::cos(Kokkos::numbers::pi * j / degree);
-		}
 		int index;
 		double xi, eta;
 		for (int j = 0; j < degree+1; j++) { // xi loop
-			xi = cheb_points[j] * xi_scale + xi_offset;
+			xi = Kokkos::cos(Kokkos::numbers::pi * j / degree)* xi_scale + xi_offset;
 			for (int k = 0; k < degree+1; k++) { // eta loop
 				index = j * (degree+1) + k;
-				eta = cheb_points[k] * eta_scale + eta_offset;
+				eta = Kokkos::cos(Kokkos::numbers::pi * k / degree) * eta_scale + eta_offset;
 				xyzvec_from_xietavec(x_comps(i-offset, index), y_comps(i-offset, index), z_comps(i-offset, index), xi_derivs_workspace(i-offset,index), eta_derivs_workspace(i-offset,index), cubed_sphere_panels(i).face, xi, eta);
 			}
 		}
@@ -164,7 +159,6 @@ struct panel_laplacian {
 		double xi_scale = 0.5*(max_xi - min_xi);
 		double eta_offset = 0.5*(min_eta + max_eta);
 		double eta_scale = 0.5*(max_eta - min_eta);
-		int pc = (degree+1) * (degree+1);
 		bli_deriv_xi(&xi_derivs_workspace(i-offset,0), &func_vals(i-offset,0), degree, min_xi, max_xi);
 		bli_deriv_eta(&eta_derivs_workspace(i-offset,0), &func_vals(i-offset, 0), degree, min_eta, max_eta);
 		bli_deriv_xi(&xixi_derivs_workspace(i-offset,0), &xi_derivs_workspace(i-offset,0), degree, min_xi, max_xi);
