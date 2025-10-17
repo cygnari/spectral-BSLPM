@@ -38,7 +38,7 @@ struct child_to_parent {
 	int point_count;
 	int interp_degree;
 
-	child_to_parent(Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_pots_, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals_,
+	child_to_parent(Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_pots_, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals_, 
 					Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels_, int point_count_, int interp_degree_) : proxy_source_pots(proxy_source_pots_), 
 					interp_vals(interp_vals_), cubed_sphere_panels(cubed_sphere_panels_), point_count(point_count_), interp_degree(interp_degree_) {}
 
@@ -46,7 +46,7 @@ struct child_to_parent {
 	void operator()(const int k) const { // k is child panel index
 		int parent = cubed_sphere_panels(k).parent_id;
 		double min_xi, max_xi, min_eta, max_eta, xi, eta, xi_off, xi_scale, eta_off, eta_scale;
-		double bli_vals[point_count];
+		double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
 		min_xi = cubed_sphere_panels(parent).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(parent).max_xi * Kokkos::numbers::pi / 4.0;
 		min_eta = cubed_sphere_panels(parent).min_eta * Kokkos::numbers::pi / 4.0;
@@ -63,6 +63,7 @@ struct child_to_parent {
 				Kokkos::atomic_add(&proxy_source_pots(parent,j), bli_vals[j] * proxy_source_pots(k,i));
 			}
 		}
+		Kokkos::kokkos_free(bli_vals);
 	}
 };
 
@@ -90,7 +91,8 @@ struct parent_to_child {
 			child = cubed_sphere_panels(i).child4;
 		}
 		double min_xi, max_xi, min_eta, max_eta, xi, eta, xi_off, xi_scale, eta_off, eta_scale;
-		double bli_vals[point_count];
+		// double bli_vals[point_count];
+		double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
 		double val;
 		min_xi = cubed_sphere_panels(i).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(i).max_xi * Kokkos::numbers::pi / 4.0;
@@ -107,10 +109,10 @@ struct parent_to_child {
 			interp_vals_bli(bli_vals, xi, eta, min_xi, max_xi, min_eta, max_eta, interp_degree);
 			for (int l = 0; l < point_count; l++) {
 				val = bli_vals[l] * proxy_target_pots(i,l);
-
 				Kokkos::atomic_add(&proxy_target_pots(child,k), bli_vals[l]*proxy_target_pots(i,l));
 			}
 		}
+		Kokkos::kokkos_free(bli_vals);
 	}
 };
 
@@ -142,7 +144,8 @@ struct parent_to_child_3 {
 			child = cubed_sphere_panels(i).child4;
 		}
 		double min_xi, max_xi, min_eta, max_eta, xi, eta, xi_off, xi_scale, eta_off, eta_scale;
-		double bli_vals[point_count];
+		// double bli_vals[point_count];
+		double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
 		double val;
 		min_xi = cubed_sphere_panels(i).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(i).max_xi * Kokkos::numbers::pi / 4.0;
@@ -163,6 +166,7 @@ struct parent_to_child_3 {
 				Kokkos::atomic_add(&proxy_target_pots_3(child,k), bli_vals[l]*proxy_target_pots_3(i,l));
 			}
 		}
+		Kokkos::kokkos_free(bli_vals);
 	}
 };
 
