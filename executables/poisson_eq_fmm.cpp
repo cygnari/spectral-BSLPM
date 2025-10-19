@@ -78,22 +78,11 @@ int main(int argc, char* argv[]) {
 
 		poisson_initialize(run_config, xcos, ycos, zcos, pots);
 
-		// for (int i = 0; i < pots.extent_int(0); i++) {
-		// 	for (int j = 0; j < pots.extent_int(1); j++) {
-		// 		std::cout << pots(i,j) << " " << area(i,j) << std::endl;
-		// 	}
-		// }
-
 		Kokkos::fence();
 		MPI_Barrier(MPI_COMM_WORLD);
 		end = std::chrono::steady_clock::now();
 		if (run_config.mpi_id == 0) {
 			std::cout << "initialization time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
-			// for (int i = 0; i < xcos.extent_int(0); i++) {
-			// 	for (int j = 0; j < xcos.extent_int(1); j++) {
-			// 		std::cout << xcos(i,j) << " " << ycos(i,j) << " " << zcos(i, j) << std::endl;
-			// 	}	
-			// }
 		}
 		begin = std::chrono::steady_clock::now();
 
@@ -106,9 +95,6 @@ int main(int argc, char* argv[]) {
 		if (run_config.mpi_id == 0) {
 			std::cout << "dual tree traversal time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 			std::cout << "interaction count: " << run_config.fmm_interaction_count << std::endl; 
-			// for (int i = 0; i < run_config.fmm_interaction_count; i++) {
-			// 	std::cout << interaction_list(i).target_panel << " " << interaction_list(i).source_panel << " " << interaction_list(i).interact_type << std::endl;
-			// }
 		}
 		begin = std::chrono::steady_clock::now();
 
@@ -140,12 +126,6 @@ int main(int argc, char* argv[]) {
 
 		Kokkos::View<double**, Kokkos::LayoutRight> d_proxy_source_weights("device proxy source weights", run_config.panel_count, pow(run_config.interp_degree+1, 2));
 
-		// for (int i = 0; i < d_pots.extent_int(0); i++) {
-		// 	for (int j = 0; j < d_pots.extent_int(1); j++) {
-		// 		std::cout << d_pots(i,j) * d_area(i,j) << std::endl;
-		// 	}
-		// }
-
 		upward_pass(run_config, d_interp_vals, d_cubed_sphere_panels, d_area, d_pots, d_proxy_source_weights);
 
 		end = std::chrono::steady_clock::now();
@@ -153,25 +133,8 @@ int main(int argc, char* argv[]) {
 			std::cout << "upward pass time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 		}
 		begin = std::chrono::steady_clock::now();
-		// std::cout << d_proxy_source_weights(0,0) << std::endl;
-		// for (int i = 0; i < d_proxy_source_weights.extent_int(0); i++) {
-		// 	for (int j = 0; j < d_proxy_source_weights.extent_int(1); j++) {
-		// 		std::cout << d_proxy_source_weights(i,j) << std::endl;
-		// 	}
-		// }
 
 		Kokkos::View<double**, Kokkos::LayoutRight> d_proxy_target_potentials("device proxy target potentials", run_config.panel_count, pow(run_config.interp_degree+1, 2));
-
-		// for (int i = 0; i < d_proxy_target_potentials.extent_int(0); i++) {
-		// for (int j = 0; j < d_proxy_target_potentials.extent_int(1); j++) {
-		// 	std::cout << d_proxy_target_potentials(0,j) << std::endl;
-		// }
-		// }
-		// for (int i = 0; i < d_proxy_target_potentials.extent_int(0); i++) {
-		// 	for (int j = 0; j < d_proxy_target_potentials.extent_int(1); j++) {
-		// 		std::cout << d_proxy_target_potentials(i,j) << std::endl;
-		// 	}
-		// }
 
 		poisson_fmm_interactions(run_config, d_proxy_target_potentials, d_proxy_source_weights, d_interaction_list, d_cubed_sphere_panels, d_interp_vals);
 
@@ -180,15 +143,6 @@ int main(int argc, char* argv[]) {
 			std::cout << "interaction time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 		}
 		begin = std::chrono::steady_clock::now();
-		// std::cout << d_proxy_target_potentials(0,0) << std::endl;
-		// for (int i = 0; i < d_proxy_target_potentials.extent_int(0); i++) {
-		// 	for (int j = 0; j < d_proxy_target_potentials.extent_int(1); j++) {
-		// 		std::cout << d_proxy_target_potentials(i,j) << std::endl;
-		// 	}
-		// }
-		// for (int j = 0; j < d_proxy_target_potentials.extent_int(1); j++) {
-		// 	std::cout << d_proxy_target_potentials(0,j) << std::endl;
-		// }
 
 		downward_pass(run_config, d_interp_vals, d_cubed_sphere_panels, d_proxy_target_potentials, d_soln);
 
@@ -197,7 +151,6 @@ int main(int argc, char* argv[]) {
 			std::cout << "downward pass time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 		}
 		begin = std::chrono::steady_clock::now();
-		// std::cout << d_soln(0,0) << std::endl;
 
 		// back to host
 		Kokkos::deep_copy(soln, d_soln);
@@ -206,7 +159,6 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::steady_clock::now();
 		if (run_config.mpi_id == 0) {
 			std::cout << "device to host communication time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
-			// std::cout << soln(0,0) << std::endl;
 		}
 		begin = std::chrono::steady_clock::now();
 		MPI_Allreduce(MPI_IN_PLACE, &soln(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -216,13 +168,6 @@ int main(int argc, char* argv[]) {
 			std::cout << "global reduction time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 		}
 		begin = std::chrono::steady_clock::now();
-		// int i = 0;
-		// std::cout << cubed_sphere_panels(i+6).id_right_edge << " " << soln(i,0) << " " << soln(cubed_sphere_panels(i+6).id_right_edge,20)<< std::endl;
-		// std::cout << soln(i,0)-soln(cubed_sphere_panels(i+6).id_right_edge,20)<< std::endl;
-
-		// for (int i = 0; i < pots_1d.extent_int(0); i++) {
-		// 	std::cout << xcos_1d(i) << " " << ycos_1d(i) << " " << zcos_1d(i) << " " << pots_1d(i) << " " << one_d_no_of_points(i) << std::endl;
-		// }
 
 		if (run_config.write_output) {
 			Kokkos::View<double*, Kokkos::HostSpace> xcos_1d ("1d x cos", run_config.point_count);

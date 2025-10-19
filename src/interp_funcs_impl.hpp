@@ -11,8 +11,6 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	xi_offset = 0.5*(max_xi + min_xi);
 	eta_range = 0.5*(max_eta - min_eta);
 	eta_offset = 0.5*(max_eta + min_eta);
-	// double* xi_f_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * (interp_deg+1));
-	// double* eta_f_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * (interp_deg+1));
 	double xi_f_vals[121], eta_f_vals[121];
 
 	bool found_xi_point = false;
@@ -88,8 +86,6 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 			basis_vals[index] = xi_f_vals[i] * eta_f_vals[j];
 		}
 	}
-	// Kokkos::kokkos_free(xi_f_vals);
-	// Kokkos::kokkos_free(eta_f_vals);
 }
 
 #endif

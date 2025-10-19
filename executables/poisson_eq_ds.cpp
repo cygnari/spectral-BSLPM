@@ -80,13 +80,9 @@ int main(int argc, char* argv[]) {
 		if (run_config.mpi_id == 0) {
 			std::cout << "initialization time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 		}
-
-		// before this is on host
-		
-		begin = std::chrono::steady_clock::now();
+		begin = std::chrono::steady_clock::now();		
 
 		// move to device if available
-
 		Kokkos::View<double*> d_xcos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), xcos);
 		Kokkos::View<double*> d_ycos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), ycos);
 		Kokkos::View<double*> d_zcos = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace::memory_space(), zcos);
@@ -97,14 +93,34 @@ int main(int argc, char* argv[]) {
 		Kokkos::deep_copy(d_zcos, zcos);
 		Kokkos::deep_copy(d_area, area);
 		Kokkos::deep_copy(d_pots, pots);
+		Kokkos::fence();
+		MPI_Barrier(MPI_COMM_WORLD);
+		end = std::chrono::steady_clock::now();
+		if (run_config.mpi_id == 0) {
+			std::cout << "host to device communication time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
+		}
+		begin = std::chrono::steady_clock::now();
 		Kokkos::View<double*, Kokkos::DefaultExecutionSpace::memory_space> d_soln ("solution", run_config.point_count);
 
 		direct_sum_inv_lap(run_config, d_xcos, d_ycos, d_zcos, d_area, d_pots, d_soln); // direct sum
 
 		Kokkos::fence();
+		MPI_Barrier(MPI_COMM_WORLD);
+		end = std::chrono::steady_clock::now();
+		if (run_config.mpi_id == 0) {
+			std::cout << "integration time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
+		}
+		begin = std::chrono::steady_clock::now();
 
 		// move back to host
 		Kokkos::deep_copy(soln, d_soln);
+		Kokkos::fence();
+		MPI_Barrier(MPI_COMM_WORLD);
+		end = std::chrono::steady_clock::now();
+		if (run_config.mpi_id == 0) {
+			std::cout << "device to host communication time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
+		}
+		begin = std::chrono::steady_clock::now();
 		MPI_Allreduce(MPI_IN_PLACE, &soln(0), run_config.point_count, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 		MPI_Barrier(MPI_COMM_WORLD);
 
@@ -113,7 +129,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::steady_clock::now();
 
 		if (run_config.mpi_id == 0) {
-			std::cout << "integration time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
+			std::cout << "global reduction time: " << std::chrono::duration<double>(end - begin).count() << " seconds" << std::endl;
 		}
 
 		if (run_config.mpi_id == 0) {

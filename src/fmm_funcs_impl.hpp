@@ -149,7 +149,6 @@ struct parent_to_child_3 {
 		// double bli_vals[point_count];
 		// double* bli_vals = (double*) Kokkos::kokkos_malloc(sizeof(double) * point_count);
 		double bli_vals[121];
-		double val;
 		min_xi = cubed_sphere_panels(i).min_xi * Kokkos::numbers::pi / 4.0;
 		max_xi = cubed_sphere_panels(i).max_xi * Kokkos::numbers::pi / 4.0;
 		min_eta = cubed_sphere_panels(i).min_eta * Kokkos::numbers::pi / 4.0;

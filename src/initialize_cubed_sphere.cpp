@@ -256,14 +256,11 @@ struct compute_point_panel {
 		double min_xi = M_PI/4.0*cubed_sphere_panels(i).min_xi;
 		double max_eta = M_PI/4.0*cubed_sphere_panels(i).max_eta;
 		double min_eta = M_PI/4.0*cubed_sphere_panels(i).min_eta;
-		double xyz1[3], xyz2[3], xyz3[3], xyz4[3], area1, area2, panel_area;
+		double xyz1[3], xyz2[3], xyz3[3], xyz4[3], panel_area;
 		xyz_from_xieta(min_xi, min_eta, cubed_sphere_panels(i).face, xyz1);
 		xyz_from_xieta(max_xi, min_eta, cubed_sphere_panels(i).face, xyz2);
 		xyz_from_xieta(max_xi, max_eta, cubed_sphere_panels(i).face, xyz3);
 		xyz_from_xieta(min_xi, max_eta, cubed_sphere_panels(i).face, xyz4);
-		// area1 = sphere_tri_area(xyz1, xyz2, xyz3);
-		// area2 = sphere_tri_area(xyz1, xyz3, xyz4);
-		// panel_area = area1+area2;
 		panel_area = cubed_sphere_panels(i).area;
 		double xi_range, xi_offset, eta_range, eta_offset;
 		xi_range = 0.5*(max_xi - min_xi), xi_offset = 0.5*(max_xi + min_xi);
