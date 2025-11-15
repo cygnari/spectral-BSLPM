@@ -25,6 +25,18 @@ double gcdist(const double* p1, const double* p2) {
 	return acos(dp);
 }
 
+void xyz_to_colatlon(double& colat, double& lon, const double x, const double y, const double z) {
+  // turns cartesian coordinates to spherical coordinates
+  colat = atan2(sqrt(x * x + y * y), z); // colatitude
+  lon = atan2(y, x);                   // longitude
+}
+
+void xyz_to_latlon(double& lat, double& lon, const double x, const double y, const double z) {
+  // turns cartesian coordinates to spherical coordinates
+  lat = M_PI / 2.0 - atan2(sqrt(x * x + y * y), z); // colatitude
+  lon = atan2(y, x);                   // longitude
+}
+
 void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double x, const double y, const double z) {
 	double sqc = sqrt(x*x+y*y);
 	x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;

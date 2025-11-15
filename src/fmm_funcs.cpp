@@ -23,8 +23,6 @@ void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, 
 	// top level interactions
 	int ub = 6;
 	int lb = 0;
-	// int ub = run_config.panel_count;
-	// int lb = run_config.panel_count - run_config.active_panel_count;
 	for (int i = lb; i < ub; i++) {
 		for (int j = lb; j < ub; j++) {
 			target_squares.push(i);

@@ -26,7 +26,7 @@ struct compute_point {
 					area(area_), dist_between(dist_between_), small_offset(small_offset_), 
 					points_per_side(points_per_side_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i, const int j, const int k) const {
 		double xi = -Kokkos::numbers::pi / 4.0 + small_offset + dist_between * j;
 		double eta = -Kokkos::numbers::pi / 4.0 + small_offset + dist_between * k;
@@ -69,7 +69,7 @@ struct refine_cube {
 	refine_cube(const RunConfig& run_config_, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels_, int level_) :
 				run_config(run_config_), cubed_sphere_panels(cubed_sphere_panels_), level(level_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i) const {
 		// refine panel i of prev level
 		int level_start = run_config.cubed_sphere_level_start[level+1];
@@ -77,9 +77,9 @@ struct refine_cube {
 		int prev_start = run_config.cubed_sphere_level_start[level];
 		for (int j = 0; j < 4; j++) {
 			cubed_sphere_panels(start+j).id = start+j;
-			cubed_sphere_panels(start+j).face = cubed_sphere_panels[i+prev_start].face;
+			cubed_sphere_panels(start+j).face = cubed_sphere_panels(i+prev_start).face;
 			cubed_sphere_panels(start+j).parent_id = i + prev_start;
-			cubed_sphere_panels(start+j).level = cubed_sphere_panels[prev_start+i].level + 1;
+			cubed_sphere_panels(start+j).level = cubed_sphere_panels(prev_start+i).level + 1;
 		}
 		double max_xi = cubed_sphere_panels(i+prev_start).max_xi;
 		double min_xi = cubed_sphere_panels(i+prev_start).min_xi;
@@ -147,7 +147,7 @@ struct cubed_sphere_init_2 {
 	cubed_sphere_init_2(const RunConfig& run_config_, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels_) :
 						run_config(run_config_), cubed_sphere_panels(cubed_sphere_panels_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i) const {
 		if (cubed_sphere_panels(i).level == run_config.levels - 1) {
 			cubed_sphere_panels(i).is_leaf = true;
@@ -185,7 +185,7 @@ struct cubed_sphere_init_2 {
 void cubed_sphere_panels_init(const RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels) {
 	for (int i = 0; i < 6; i++) {
 		cubed_sphere_panels(i).id = i;
-		cubed_sphere_panels(i).face = i+1;
+		cubed_sphere_panels(i).face = i;
 		cubed_sphere_panels(i).min_xi = -1;
 		cubed_sphere_panels(i).max_xi = 1;
 		cubed_sphere_panels(i).min_eta = -1;
@@ -249,7 +249,7 @@ struct compute_point_panel {
 						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area_) : run_config(run_config_), interp_vals(interp_vals_),
 					cubed_sphere_panels(cubed_sphere_panels_), xcos(xcos_), ycos(ycos_), zcos(zcos_), area(area_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i) const {
 		int offset = run_config.cubed_sphere_level_start[run_config.levels-1];
 		double max_xi = M_PI/4.0*cubed_sphere_panels(i).max_xi;
@@ -338,12 +338,11 @@ struct sol_2d_to_1d{
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& soln_, Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d_) :
 					area_1d(area_1d_), pots_1d(pots_1d_), soln_1d(soln_1d_), area(area_), pots(pots_), soln(soln_), two_d_to_1d(two_d_to_1d_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i, const int j) const {
 		int loc = two_d_to_1d(i,j);
 		Kokkos::atomic_add(&area_1d(loc), area(i,j));
 		if (soln_1d(loc) == 0) {
-			// Kokkos::atomic_add(&pots_1d(loc), pots(i,j));
 			Kokkos::atomic_add(&soln_1d(loc), soln(i,j));
 		}
 		if (pots_1d(loc) == 0) {
@@ -360,7 +359,7 @@ struct one_d_average {
 	one_d_average(Kokkos::View<double*, Kokkos::HostSpace>& pots_1d_, Kokkos::View<double*, Kokkos::HostSpace>& soln_1d_, Kokkos::View<int*, Kokkos::HostSpace>& one_d_no_of_points_) :
 					pots_1d(pots_1d_), soln_1d(soln_1d_), one_d_no_of_points(one_d_no_of_points_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i) const {
 		int count = one_d_no_of_points(i);
 		// count = 1;
@@ -378,7 +377,7 @@ struct poisson_regularize {
 	poisson_regularize(Kokkos::View<double*, Kokkos::HostSpace>& pots_1d_, Kokkos::View<double*, Kokkos::HostSpace>& area_1d_, 
 						Kokkos::View<double*, Kokkos::HostSpace>& soln_1d_) : pots_1d(pots_1d_), area_1d(area_1d_), soln_1d(soln_1d_) {}
 
-	KOKKOS_INLINE_FUNCTION
+	// KOKKOS_INLINE_FUNCTION
 	void operator()(const int i) const {
 		soln_1d(i) += area_1d(i) * pots_1d(i);
 	}
@@ -393,8 +392,29 @@ void solution_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Kokkos
 	// Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.point_count), poisson_regularize(pots_1d, area_1d, soln_1d));
 }
 
+struct v_2d_to_1d{
+	Kokkos::View<double*, Kokkos::HostSpace> vec_1d;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vec;
+	Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace> two_d_to_1d;
+	bool add;
 
+	v_2d_to_1d(Kokkos::View<double*, Kokkos::HostSpace>& vec_1d_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vec_, 
+					Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d_, bool add_) : vec_1d(vec_1d_), vec(vec_), two_d_to_1d(two_d_to_1d_), add(add_) {}
 
+	// KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j) const {
+		int loc = two_d_to_1d(i,j);
+		if (add) {
+			Kokkos::atomic_add(&vec_1d(loc), vec(i,j));
+		} else {
+			if (vec_1d(loc) == 0) {
+				Kokkos::atomic_add(&vec_1d(loc), vec(i,j));
+			}
+		}
+	}
+};
 
-
-
+void vec_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& vec_1d, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vec, 
+						Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d, bool add) {
+	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {vec.extent_int(0), vec.extent_int(1)}), v_2d_to_1d(vec_1d, vec, two_d_to_1d, add));
+}

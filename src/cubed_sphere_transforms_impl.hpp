@@ -2,7 +2,6 @@
 #define H_CUBE_SPHERE_TRANSFORMS_IMPL_H
 
 #include <Kokkos_Core.hpp>
-// #include <KokkosLapack_gesv.hpp>
 
 KOKKOS_INLINE_FUNCTION
 int face_from_xyz(const double x, const double y, const double z) {
@@ -11,21 +10,21 @@ int face_from_xyz(const double x, const double y, const double z) {
 	double az = Kokkos::abs(z);
 	if ((ax >= ay) and (ax >= az)) {
 	  if (x >= 0) {
+	    return 0;
+	  } else {
+	    return 2;
+	  }
+	} else if ((ay >= ax) and (ay >= az)) {
+	  if (y >= 0) {
 	    return 1;
 	  } else {
 	    return 3;
 	  }
-	} else if ((ay >= ax) and (ay >= az)) {
-	  if (y >= 0) {
-	    return 2;
-	  } else {
-	    return 4;
-	  }
 	} else {
 	  if (z >= 0) {
-	    return 5;
+	    return 4;
 	  } else {
-	    return 6;
+	    return 5;
 	  }
 	}
 }
@@ -34,27 +33,27 @@ KOKKOS_INLINE_FUNCTION
 void xyz_from_xieta(const double xi, const double eta, const int face, double* xyz) {
 	double X = Kokkos::tan(xi);
 	double Y = Kokkos::tan(eta);
-	if (face == 1) {
+	if (face == 0) {
 	  xyz[0] = 1.0/Kokkos::sqrt(1+X*X+Y*Y);
 	  xyz[1] = X*xyz[0];
 	  xyz[2] = Y*xyz[0];
-	} else if (face == 2) {
+	} else if (face == 1) {
 	  xyz[1] = 1.0/Kokkos::sqrt(1+X*X+Y*Y);
 	  xyz[0] = -X*xyz[1];
 	  xyz[2] = Y*xyz[1];
-	} else if (face == 3) {
+	} else if (face == 2) {
 	  xyz[0] = -1.0/Kokkos::sqrt(1+X*X+Y*Y);
 	  xyz[1] = X*xyz[0];
 	  xyz[2] = -Y*xyz[0];
-	} else if (face == 4) {
+	} else if (face == 3) {
 	  xyz[1] = -1.0/Kokkos::sqrt(1+X*X+Y*Y);
 	  xyz[0] = -X*xyz[1];
 	  xyz[2] = -Y*xyz[1];
-	} else if (face == 5) {
+	} else if (face == 4) {
 	  xyz[2] = 1.0/Kokkos::sqrt(1+X*X+Y*Y);
 	  xyz[0] = -Y*xyz[2];
 	  xyz[1] = X*xyz[2];
-	} else if (face == 6) {
+	} else if (face == 5) {
 	  xyz[2] = -1.0/Kokkos::sqrt(1+X*X+Y*Y);
 	  xyz[0] = -Y*xyz[2];
 	  xyz[1] = -X*xyz[2];
@@ -75,12 +74,12 @@ void xieta_from_xyz(const double x, const double y, const double z, double* xiet
 	    xieta[1] = Kokkos::atan(z/x);
 	  } else {
 	    xieta[0] = Kokkos::atan(y/x);
-      xieta[1] = Kokkos::atan(-z/x);
+        xieta[1] = Kokkos::atan(-z/x);
 	  }
 	} else if ((ay >= ax) and (ay >= az)) {
 	  if (y >= 0) {
 	    xieta[0] = Kokkos::atan(-x/y);
-      xieta[1] = Kokkos::atan(z/y);
+        xieta[1] = Kokkos::atan(z/y);
 	  } else {
 	    xieta[0] = Kokkos::atan(-x/y);
 	    xieta[1] = Kokkos::atan(-z/y);
@@ -98,22 +97,22 @@ void xieta_from_xyz(const double x, const double y, const double z, double* xiet
 
 KOKKOS_INLINE_FUNCTION
 void xieta_from_xyz(const double x, const double y, const double z, const int face, double* xieta) {
-	if (face == 1) {
+	if (face == 0) {
 		xieta[0] = Kokkos::atan(y/x);
 	    xieta[1] = Kokkos::atan(z/x);
-	} else if (face == 2) {
+	} else if (face == 1) {
 		xieta[0] = Kokkos::atan(-x/y);
 		xieta[1] = Kokkos::atan(z/y);
-	} else if (face == 3) {
+	} else if (face == 2) {
 		xieta[0] = Kokkos::atan(y/x);
 		xieta[1] = Kokkos::atan(-z/x);
-	} else if (face == 4) {
+	} else if (face == 3) {
 		xieta[0] = Kokkos::atan(-x/y);
 		xieta[1] = Kokkos::atan(-z/y);
-	} else if (face == 5) {
+	} else if (face == 4) {
 		xieta[0] = Kokkos::atan(y/z);
 		xieta[1] = Kokkos::atan(-x/z);
-	} else if (face == 6) {
+	} else if (face == 5) {
 		xieta[0] = Kokkos::atan(-y/z);
 		xieta[1] = Kokkos::atan(-x/z);
 	} else {

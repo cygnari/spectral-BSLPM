@@ -13,7 +13,6 @@ struct RunConfig {
 	int levels; // base refinement level of the cubed sphere
 	int* cubed_sphere_level_start; // start location of cubed sphere panels of each level
 	int interp_degree; // interpolation degree to use
-	int tracer_count;
 	int end_time; // end time in seconds, 86400 = 1 day
 	int delta_t; // time step in seconds
 	int time_steps; // number of time steps
@@ -22,6 +21,9 @@ struct RunConfig {
 	double fmm_theta = 0.7; // parameter for well separated threshold
 	int fmm_cluster_thresh; // threshold to treat a panel as a cluster
 	int fmm_interaction_count;
+	int tracer_count = 0; // number of passive tracers
+	double omega = 0.00007272205216643039; // Coriolis parameter in 1/seconds
+	bool interp_output = true; // whether or not to interpolate to lat lon for output
 
 	// mpi info
 	int mpi_p; // total number of MPI ranks

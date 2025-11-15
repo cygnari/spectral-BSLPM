@@ -23,4 +23,9 @@ void downward_pass(const RunConfig& run_config, Kokkos::View<double**, Kokkos::L
 					Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots, 
 					Kokkos::View<double**, Kokkos::LayoutRight>& sols);
 
+void downward_pass_3(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals, 
+					Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_1, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_2, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_3,  
+					Kokkos::View<double**, Kokkos::LayoutRight>& sols_1, Kokkos::View<double**, Kokkos::LayoutRight>& sols_2, Kokkos::View<double**, Kokkos::LayoutRight>& sols_3);
+
 #endif

@@ -14,4 +14,9 @@ void poisson_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokk
 						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos, 
 						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& potential);
 
+void bve_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity);
+
 #endif

@@ -1,6 +1,7 @@
 add_library(specBSLPM
     fmm_interactions/inverse_poisson.cpp
     fmm_interactions/bve_vel.cpp
+    bve_time_step.cpp
     cubed_sphere_transforms.cpp
     deriv_funcs.cpp
     direct_sum.cpp
@@ -10,10 +11,11 @@ add_library(specBSLPM
     initialize_cubed_sphere.cpp
     interp_funcs.cpp
     io_utils.cpp
-    mpi_utils.cpp)
+    mpi_utils.cpp
+    newton_solve.cpp)
 
-#target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels)
-target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos)
+target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels netCDF::netcdf)
+# target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos)
 target_include_directories(specBSLPM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
@@ -28,6 +30,7 @@ install(FILES
     fmm_interactions/inverse_poisson_impl.hpp
     fmm_interactions/bve_vel.hpp
     fmm_interactions/bve_vel_impl.hpp
+    bve_time_step.hpp
     cubed_sphere_transforms.hpp
     cubed_sphere_transforms_impl.hpp
     deriv_funcs.hpp
@@ -43,5 +46,7 @@ install(FILES
     interp_funcs.hpp
     io_utils.hpp
     mpi_utils.hpp
+    newton_solve.hpp
+    newton_solve_impl.hpp
     run_config.hpp
     DESTINATION ${PROJECT_SOURCE_DIR}/include)

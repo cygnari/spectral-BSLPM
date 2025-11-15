@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <Kokkos_Core.hpp>
+#include <netcdf.h>
 
 #include "run_config.hpp"
 
@@ -32,6 +33,9 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	    run_config.levels = stoi(word2);
 	  } else if (word1 == "interp_degree") {
 	  	run_config.interp_degree = stoi(word2);
+	  	if (run_config.interp_degree > 10) {
+	  		run_config.interp_degree = 10;
+	  	}
 	  } else if (word1 == "theta") {
 	    run_config.fmm_theta = stod(word2);
 	  } else if (word1 == "initial_condition") {
@@ -44,6 +48,14 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	    run_config.end_time = stoi(word2);
 	  } else if (word1 == "delta_t") {
 	    run_config.delta_t = stoi(word2);
+	  } else if (word1 == "tracer_count") {
+	  	run_config.tracer_count = stoi(word2);
+	  } else if (word1 == "omega") {
+	  	run_config.omega = stod(word2);
+	  } else if (word1 == "interp_output") {
+	  	if (stoi(word2) == 0) {
+	  		run_config.interp_output = false;
+	  	}
 	  } else {
 	    run_config.fmm_cluster_thresh = 4 * pow(run_config.interp_degree + 1, 2);
 	    run_config.time_steps = run_config.end_time / run_config.delta_t;
