@@ -24,6 +24,10 @@ struct RunConfig {
 	int tracer_count = 0; // number of passive tracers
 	double omega = 0.00007272205216643039; // Coriolis parameter in 1/seconds
 	bool interp_output = true; // whether or not to interpolate to lat lon for output
+	std::vector<std::string> tracers; // valid options: 
+	double kernel_eps; // kernel regularization epsilon
+	bool forcing = false;
+	std::string forcing_type;
 
 	// mpi info
 	int mpi_p; // total number of MPI ranks

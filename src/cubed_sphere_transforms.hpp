@@ -15,4 +15,6 @@ void loncolatvec_from_xietavec(double& lon_comp, double& colat_comp, const doubl
 
 void xyzvec_from_xietavec(double& x_comp, double& y_comp, double& z_comp, const double xi_deriv, const double eta_deriv, const int face, const double xi, const double eta);
 
+void xietavec_from_xyzvec(double& xi_comp, double& eta_comp, double x_comp, double y_comp, double z_comp, double x, double y, double z);
+
 #endif

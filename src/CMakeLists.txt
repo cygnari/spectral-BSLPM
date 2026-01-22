@@ -6,13 +6,13 @@ add_library(specBSLPM
     deriv_funcs.cpp
     direct_sum.cpp
     fmm_funcs.cpp
+    forcing_funcs.cpp
     general_utils.cpp
     initial_conditions.cpp
     initialize_cubed_sphere.cpp
     interp_funcs.cpp
     io_utils.cpp
-    mpi_utils.cpp
-    newton_solve.cpp)
+    mpi_utils.cpp)
 
 target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels netCDF::netcdf)
 # target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos)
@@ -39,6 +39,7 @@ install(FILES
     direct_sum_impl.hpp
     fmm_funcs.hpp
     fmm_funcs_impl.hpp
+    forcing_funcs.hpp
     general_utils.hpp
     general_utils_impl.hpp
     initial_conditions.hpp
@@ -46,7 +47,5 @@ install(FILES
     interp_funcs.hpp
     io_utils.hpp
     mpi_utils.hpp
-    newton_solve.hpp
-    newton_solve_impl.hpp
     run_config.hpp
     DESTINATION ${PROJECT_SOURCE_DIR}/include)

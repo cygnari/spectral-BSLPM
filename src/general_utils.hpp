@@ -15,4 +15,6 @@ void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, con
 
 void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double x_comp, const double y_comp, const double z_comp, const double x, const double y, const double z);
 
+void xyz_from_lonlat(double& x_comp, double& y_comp, double& z_comp, const double lon, const double lat);
+
 #endif

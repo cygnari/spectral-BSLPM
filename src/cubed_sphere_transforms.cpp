@@ -1,5 +1,8 @@
 #include <cmath>
 #include <stdexcept>
+#include <iostream>
+#include <Kokkos_Core.hpp>
+#include <KokkosBatched_Gesv.hpp>
 
 double cubed_sphere_jac(double xi, double eta) {
 	return 1.0 / (pow(cos(xi) * cos(eta), 2) * pow(1 + pow(tan(xi), 2) + pow(tan(eta), 2), 1.5));
@@ -58,7 +61,7 @@ void xyz_from_xieta(const double xi, const double eta, const int face, double* x
 	  xyz[0] = -Y*xyz[2];
 	  xyz[1] = -X*xyz[2];
 	} else {
-		throw std::runtime_error("Input face is not between 1 and 6, xyz_from_xieta");
+		throw std::runtime_error("Input face is not between 0 and 5, xyz_from_xieta");
 	}
 }
 
@@ -130,13 +133,13 @@ void loncolatvec_from_xietavec(double& lon_comp, double& colat_comp, const doubl
 	double grad_xi_comp = D * xi_deriv + X*Y/D * eta_deriv;
 	double grad_eta_comp = X*Y/C*xi_deriv + C*eta_deriv;
 	double delta = 1+X2+Y2;
-	if ((face == 1) or (face == 2) or (face == 3) or (face == 4)) {
+	if ((face == 0) or (face == 1) or (face == 2) or (face == 3)) {
 		colat_comp = X*Y/(C*D)*grad_xi_comp - grad_eta_comp;
 		lon_comp = sqrt(delta)/(C*D)*grad_xi_comp;
-	} else if (face == 5) {
+	} else if (face == 4) {
 		colat_comp = sqrt(X2+Y2)*(X/(D*(X2+Y2+1e-16))*grad_xi_comp + Y/(C*(X2+Y2+1e-16))*grad_eta_comp);
 		lon_comp = sqrt(X2+Y2)*(-sqrt(delta)*Y/(D*(X2+Y2))*grad_xi_comp + sqrt(delta)*X/(C*(X2+Y2))*grad_eta_comp);
-	} else if (face == 6) {
+	} else if (face == 5) {
 		colat_comp = -sqrt(X2+Y2)*(X/(D*(X2+Y2+1e-16))*grad_xi_comp + Y/(C*(X2+Y2+1e-16))*grad_eta_comp);
 		lon_comp = -sqrt(X2+Y2)*(-sqrt(delta)*Y/(D*(X2+Y2))*grad_xi_comp + sqrt(delta)*X/(C*(X2+Y2))*grad_eta_comp);
 	} else {
@@ -146,56 +149,133 @@ void loncolatvec_from_xietavec(double& lon_comp, double& colat_comp, const doubl
 
 void xyzvec_from_xietavec(double& x_comp, double& y_comp, double& z_comp, const double xi_deriv, const double eta_deriv, const int face, const double xi, const double eta) {
 	double lon_comp, colat_comp;
-	double X = tan(xi);
-	double Y = tan(eta);
+	double X = Kokkos::tan(xi);
+	double Y = Kokkos::tan(eta);
 	double X2=X*X;
 	double Y2=Y*Y;
-	double C=sqrt(1+X2);
-	double D=sqrt(1+Y2);
+	double C=Kokkos::sqrt(1+X2);
+	double D=Kokkos::sqrt(1+Y2);
 	double grad_xi_comp = D*xi_deriv + X*Y/D*eta_deriv;
 	double grad_eta_comp = X*Y/C*xi_deriv + C*eta_deriv;
 	double delta=1+X2+Y2;
+	double isqd = 1.0/Kokkos::sqrt(delta);
 	double xyz[3], x, y, z;
+	double mat_buf[4], work_buf[12], rhs[2], sol[2];
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged>> own_mat(mat_buf, 2, 2);
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::MemoryTraits<Kokkos::Unmanaged>> own_temp(work_buf, 2, 6);
+	Kokkos::View<double[2], Kokkos::MemoryTraits<Kokkos::Unmanaged>> own_rhs(rhs, 2);
+	Kokkos::View<double[2], Kokkos::MemoryTraits<Kokkos::Unmanaged>> own_sol(sol, 2); 
 	xyz_from_xieta(xi, eta, face, xyz);
 	x = xyz[0];
 	y = xyz[1];
 	z = xyz[2];
-	double sqc = sqrt(x*x+y*y);
-	if ((face == 1) or (face == 2) or (face == 3) or (face == 4)) {
-		colat_comp = X*Y/(C*D)*grad_xi_comp - grad_eta_comp;
-		lon_comp = sqrt(delta)/(C*D)*grad_xi_comp;
+	double sqc = Kokkos::sqrt(x*x+y*y);
+	// double isqc = 1.0/sqc;
+	double isqc2 = 1.0/Kokkos::sqrt(X2+Y2);
+	own_rhs(0) = grad_xi_comp;
+	own_rhs(1) = grad_eta_comp;
+	if ((face == 0) or (face == 1) or (face == 2) or (face == 3)) {
+		own_mat(0,0) = 0;
+		own_mat(0,1) = C*D*isqd;
+		own_mat(1,0) = -1.0;
+		own_mat(1,1) = X*Y*isqd;		
+		KokkosBatched::SerialGesv<KokkosBatched::Gesv::StaticPivoting>::invoke(own_mat, own_sol, own_rhs, own_temp);
+		colat_comp = own_sol(0);
+		lon_comp = own_sol(1);
+		// colat_comp = X*Y/(C*D)*grad_xi_comp - grad_eta_comp;
+		// lon_comp = Kokkos::sqrt(delta)/(C*D)*grad_xi_comp;
 		x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;
 		y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
 		z_comp = -sqc*colat_comp;
-	} else if (face == 5) {
-		if ((std::abs(xi) < 1e-16) and (std::abs(eta) < 1e-16)) {
+	} else if (face == 4) {
+		if ((Kokkos::abs(xi) < 1e-16) and (Kokkos::abs(eta) < 1e-16)) {
 			// close to north pole
 			z_comp = 0;
 			x_comp = grad_xi_comp;
 			y_comp = grad_eta_comp;
 		} else {
 			// away from north pole
-			colat_comp = sqrt(X2+Y2)*(X/(D*(X2+Y2))*grad_xi_comp + Y/(C*(X2+Y2))*grad_eta_comp);
-			lon_comp = sqrt(X2+Y2)*(-sqrt(delta)*Y/(D*(X2+Y2))*grad_xi_comp + sqrt(delta)*X/(C*(X2+Y2))*grad_eta_comp);
+			own_mat(0,0) = isqc2*D*X;
+			own_mat(0,1) = isqc2*-D*Y*isqd;
+			own_mat(1,0) = isqc2*C*Y;
+			own_mat(1,1) = isqc2*C*X*isqd;
+			KokkosBatched::SerialGesv<KokkosBatched::Gesv::StaticPivoting>::invoke(own_mat, own_sol, own_rhs, own_temp);
+			colat_comp = own_sol(0);
+			lon_comp = own_sol(1);
+
+			// colat_comp = Kokkos::sqrt(X2+Y2)*(X/(D*(X2+Y2))*grad_xi_comp + Y/(C*(X2+Y2))*grad_eta_comp);
+			// lon_comp = Kokkos::sqrt(X2+Y2)*(-Kokkos::sqrt(delta)*Y/(D*(X2+Y2))*grad_xi_comp + Kokkos::sqrt(delta)*X/(C*(X2+Y2))*grad_eta_comp);
 			x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;
 			y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
 			z_comp = -sqc*colat_comp;
 		}
-	} else if (face == 6) {
-		if ((std::abs(xi) < 1e-16) and (std::abs(eta) < 1e-16)) {
+	} else if (face == 5) {
+		if ((Kokkos::abs(xi) < 1e-16) and (Kokkos::abs(eta) < 1e-16)) {
 			// close to south pole
 			z_comp = 0;
 			x_comp = grad_xi_comp;
 			y_comp = grad_eta_comp;
 		} else {
 			// away from south pole
-			colat_comp = -sqrt(X2+Y2)*(X/(D*(X2+Y2))*grad_xi_comp + Y/(C*(X2+Y2))*grad_eta_comp);
-			lon_comp = -sqrt(X2+Y2)*(-sqrt(delta)*Y/(D*(X2+Y2))*grad_xi_comp + sqrt(delta)*X/(C*(X2+Y2))*grad_eta_comp);
+			own_mat(0,0) = -isqc2*D*X;
+			own_mat(0,1) = isqc2*D*Y*isqd;
+			own_mat(1,0) = -isqc2*C*Y;
+			own_mat(1,1) = -isqc2*C*X*isqd;
+			KokkosBatched::SerialGesv<KokkosBatched::Gesv::StaticPivoting>::invoke(own_mat, own_sol, own_rhs, own_temp);
+			colat_comp = own_sol(0);
+			lon_comp = own_sol(1);
+			// colat_comp = -Kokkos::sqrt(X2+Y2)*(X/(D*(X2+Y2))*grad_xi_comp + Y/(C*(X2+Y2))*grad_eta_comp);
+			// lon_comp = -Kokkos::sqrt(X2+Y2)*(-Kokkos::sqrt(delta)*Y/(D*(X2+Y2))*grad_xi_comp + Kokkos::sqrt(delta)*X/(C*(X2+Y2))*grad_eta_comp);
 			x_comp = x*z/sqc * colat_comp - y/sqc * lon_comp;
 			y_comp = y*z/sqc * colat_comp + x/sqc * lon_comp;
 			z_comp = -sqc*colat_comp;
 		}
 	} else {
-		throw std::runtime_error("Input face is not between 1 and 6, xyz vec from xi eta vec");
+		throw std::runtime_error("Input face is not between 0 and 5, xyz vec from xi eta vec");
+	}
+	
+	if (x_comp != x_comp) {
+		std::cout << face << " " << xi << " " << eta << std::endl;
+		// std::cout << own_mat(0,0) << " " << own_mat(0,1) << " " << own_mat(1,0) << " " << own_mat(1,1) << std::endl; 
+		std::cout << xi_deriv << " " << eta_deriv << std::endl;
+		std::cout << colat_comp << " " << lon_comp << std::endl;
+		std::cout << x_comp << " " << y_comp << " " << z_comp << std::endl;
+		throw std::runtime_error("nan error");
+	}
+}
+
+void xietavec_from_xyzvec(double& xi_comp, double& eta_comp, double x_comp, double y_comp, double z_comp, double x, double y, double z) {
+	double xieta[2], colat_comp, lon_comp;
+	int face;
+	xieta_from_xyz(x, y, z, xieta);
+	face = face_from_xyz(x, y, z);
+	double X, Y, X2, Y2, C, D, delta;
+	if (std::abs(z) < 1-1e-16) {
+		// away from poles
+		lon_comp = (-y*x_comp + x*y_comp) / sqrt(x*x+y*y);
+		colat_comp = ((x*x_comp + y*y_comp)*z -(x*x+y*y)*z_comp) / sqrt(x*x+y*y);
+		X = tan(xieta[0]);
+		Y = tan(xieta[1]);
+		X2 = X*X;
+		Y2 = Y*Y;
+		C = sqrt(1+X2);
+		D = sqrt(1+Y2);
+		delta = 1+X2+Y2;
+		if ((face == 0) or (face == 1) or (face == 2) or (face == 3)) {
+			xi_comp = C*D/sqrt(delta)*lon_comp;
+			eta_comp = -1.0*colat_comp + X*Y/sqrt(delta)*lon_comp;
+		} else if (face == 4) {
+			xi_comp = 1.0/sqrt(X2+Y2)*(D*X*colat_comp-D*Y/sqrt(delta)*lon_comp);
+			eta_comp = 1.0/sqrt(X2+Y2)*(C*Y*colat_comp+C*X/sqrt(delta)*lon_comp);
+		} else if (face == 5) {
+			xi_comp = -1.0/sqrt(X2+Y2)*(D*X*colat_comp-D*Y/sqrt(delta)*lon_comp);
+			eta_comp = -1.0/sqrt(X2+Y2)*(C*Y*colat_comp+C*X/sqrt(delta)*lon_comp);
+		} else {
+			Kokkos::abort("Input face is not between 0 and 5, xi eta vec from xyz vec");
+		}
+	} else {
+		// close to poles
+		xi_comp = x_comp;
+		eta_comp = y_comp;
 	}
 }

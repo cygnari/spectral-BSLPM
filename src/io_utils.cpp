@@ -48,14 +48,28 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	    run_config.end_time = stoi(word2);
 	  } else if (word1 == "delta_t") {
 	    run_config.delta_t = stoi(word2);
-	  } else if (word1 == "tracer_count") {
-	  	run_config.tracer_count = stoi(word2);
 	  } else if (word1 == "omega") {
 	  	run_config.omega = stod(word2);
 	  } else if (word1 == "interp_output") {
 	  	if (stoi(word2) == 0) {
 	  		run_config.interp_output = false;
 	  	}
+	  } else if (word1 == "tracers") {
+	  	std::istringstream input;
+  	    input.str(word2);
+  	    run_config.tracer_count = 0;
+  	    for (std::string line; std::getline(input, line, ',');) {
+  	        run_config.tracers.push_back(line);
+  	        run_config.tracer_count += 1;
+		}
+	  } else if (word1 == "kernel_eps") {
+	  	run_config.kernel_eps = stod(word2);
+	  } else if (word1 == "forcing") {
+	  	if (stoi(word2) == 1) {
+	  		run_config.forcing = true;
+	  	}
+	  } else if (word1 == "forcing_type") {
+	  	run_config.forcing_type = word2;
 	  } else {
 	    run_config.fmm_cluster_thresh = 4 * pow(run_config.interp_degree + 1, 2);
 	    run_config.time_steps = run_config.end_time / run_config.delta_t;

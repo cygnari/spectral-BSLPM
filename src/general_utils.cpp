@@ -27,14 +27,14 @@ double gcdist(const double* p1, const double* p2) {
 
 void xyz_to_colatlon(double& colat, double& lon, const double x, const double y, const double z) {
   // turns cartesian coordinates to spherical coordinates
-  colat = atan2(sqrt(x * x + y * y), z); // colatitude
-  lon = atan2(y, x);                   // longitude
+	colat = atan2(sqrt(x * x + y * y), z); // colatitude
+	lon = atan2(y, x);                     // longitude
 }
 
 void xyz_to_latlon(double& lat, double& lon, const double x, const double y, const double z) {
   // turns cartesian coordinates to spherical coordinates
-  lat = M_PI / 2.0 - atan2(sqrt(x * x + y * y), z); // colatitude
-  lon = atan2(y, x);                   // longitude
+	lat = M_PI / 2.0 - atan2(sqrt(x * x + y * y), z); // colatitude
+	lon = atan2(y, x);                   							// longitude
 }
 
 void xyzvec_from_loncolatvec(double& x_comp, double& y_comp, double& z_comp, const double lon_comp, const double colat_comp, const double x, const double y, const double z) {
@@ -57,4 +57,10 @@ void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double 
 	double sqc = sqrt(x*x+y*y);
 	lon_comp = 1.0/sqc * (-y*x_comp + x*y_comp);
 	colat_comp = z/sqc*(x*x_comp + y*y_comp) - sqc*z_comp;
+}
+
+void xyz_from_lonlat(double& x_comp, double& y_comp, double& z_comp, const double lon, const double lat) {
+	x_comp = cos(lat) * cos(lon);
+	y_comp = cos(lat) * sin(lon);
+	z_comp = sin(lat);
 }

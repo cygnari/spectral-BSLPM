@@ -17,6 +17,13 @@ void poisson_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokk
 void bve_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos, 
-					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity);
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area);
+
+void tracer_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity, 
+						Kokkos::View<double***, Kokkos::LayoutRight, Kokkos::HostSpace>& passive_tracers);
 
 #endif

@@ -104,4 +104,93 @@ void loncolatvec_from_xyzvec(double& lon_comp, double& colat_comp, const double 
 	colat_comp = z/sqc*(x*x_comp + y*y_comp) - sqc*z_comp;
 }
 
+struct copy_kokkos_view_2 {
+	Kokkos::View<double**, Kokkos::LayoutRight> target;
+	Kokkos::View<double**, Kokkos::LayoutRight> source;
+
+	copy_kokkos_view_2(Kokkos::View<double**, Kokkos::LayoutRight>& target_, Kokkos::View<double**, Kokkos::LayoutRight>& source_) :
+						target(target_), source(source_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j) const {
+		target(i,j) = source(i,j);
+	}
+};
+
+struct copy_kokkos_view_3 {
+	Kokkos::View<double***, Kokkos::LayoutRight> target;
+	Kokkos::View<double***, Kokkos::LayoutRight> source;
+
+	copy_kokkos_view_3(Kokkos::View<double***, Kokkos::LayoutRight>& target_, Kokkos::View<double***, Kokkos::LayoutRight>& source_) :
+						target(target_), source(source_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j, const int k) const {
+		target(i,j,k) = source(i,j,k);
+	}
+};
+
+struct zero_out {
+	Kokkos::View<double**, Kokkos::LayoutRight> vec;
+
+	zero_out(Kokkos::View<double**, Kokkos::LayoutRight>& vec_) : vec(vec_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j) const {
+		vec(i,j) = 0;
+	}
+};
+
+KOKKOS_INLINE_FUNCTION
+void project_to_sphere(double& x, double& y, double& z) {
+	double pointnorm = Kokkos::sqrt(x*x+y*y+z*z);
+	x /= pointnorm;
+	y /= pointnorm;
+	z /= pointnorm;
+}
+
+KOKKOS_INLINE_FUNCTION
+void make_tangent_to_sphere(double x, double y, double z, double* vec) {
+	double dp = x * vec[0] + y * vec[1] + z * vec[2];
+	vec[0] -= dp * x;
+	vec[1] -= dp * y;
+	vec[2] -= dp * z;
+}
+
+struct xyz_vel_to_uv_vel {
+	Kokkos::View<double**, Kokkos::LayoutRight> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight> vel_x;
+	Kokkos::View<double**, Kokkos::LayoutRight> vel_y;
+	Kokkos::View<double**, Kokkos::LayoutRight> vel_z;
+	Kokkos::View<double**, Kokkos::LayoutRight> vel_u;
+	Kokkos::View<double**, Kokkos::LayoutRight> vel_v;
+
+	xyz_vel_to_uv_vel(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& vel_u_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_v_) : xcos(xcos_), ycos(ycos_), zcos(zcos_), 
+					vel_x(vel_x_), vel_y(vel_y_), vel_z(vel_z_), vel_u(vel_u_), vel_v(vel_v_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i) const {
+		double x, y, z, xc, yc, zc;
+		for (int j = 0; j < xcos.extent_int(1); j++) {
+			x = xcos(i,j);
+			y = ycos(i,j);
+			z = zcos(i,j);
+			xc = vel_x(i,j);
+			yc = vel_y(i,j);
+			zc = vel_z(i,j);
+			if (abs(z) < 1 - 1e-16) { // away from pole
+				vel_u(i,j) = (-y*xc + x*yc)/sqrt(x*x+y*y);
+				vel_v(i,j) = ((x*xc+y*yc)*z-(x*x+y*y)*zc)/sqrt(x*x+y*y);
+			} else {
+				vel_u(i,j) = 0;
+				vel_v(i,j) = 0;
+			}
+		}
+	}
+};
+
 #endif
