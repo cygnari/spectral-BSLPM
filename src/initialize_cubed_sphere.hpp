@@ -45,6 +45,8 @@ void cubed_sphere_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Ko
 							Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, 
 							Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos);
 
+void unify_boundary_vals(const RunConfig& run_config, Kokkos::View<int*>& one_d_no_of_points, Kokkos::View<int**, Kokkos::LayoutRight>& two_d_to_1d, Kokkos::View<double**, Kokkos::LayoutRight>& vals);
+
 void solution_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& area_1d, Kokkos::View<double*, Kokkos::HostSpace>& pots_1d, 
 						Kokkos::View<double*, Kokkos::HostSpace>& soln_1d, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area, 
 						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& pots, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& soln, 

@@ -7,6 +7,7 @@
 #include "initialize_cubed_sphere.hpp"
 #include "run_config.hpp"
 #include "initialize_cubed_sphere.hpp"
+#include "general_utils_impl.hpp"
 
 struct compute_point {
 	RunConfig run_config;
@@ -325,6 +326,50 @@ void cubed_sphere_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Ko
 	std::cout << "points found: " << points_found << std::endl;
 }
 
+struct accumulate_vals {
+	Kokkos::View<int**, Kokkos::LayoutRight> two_d_to_1d;
+	Kokkos::View<double*> one_d_vals;
+	Kokkos::View<double**, Kokkos::LayoutRight> vals;
+
+	accumulate_vals(Kokkos::View<int**, Kokkos::LayoutRight>& two_d_to_1d_, Kokkos::View<double*>& one_d_vals_, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& vals_) : two_d_to_1d(two_d_to_1d_), one_d_vals(one_d_vals_), vals(vals_) {}
+
+	void operator()(const int i) const {
+		int jmax = vals.extent_int(1);
+		for (int j = 0; j < jmax; j++) {
+			Kokkos::atomic_add(&one_d_vals(two_d_to_1d(i,j)), vals(i,j));
+		}
+	}
+};
+
+struct average_vals {
+	Kokkos::View<int**, Kokkos::LayoutRight> two_d_to_1d;
+	Kokkos::View<double*> one_d_vals;
+	Kokkos::View<double**, Kokkos::LayoutRight> vals;
+	Kokkos::View<int*> one_d_no_of_points;
+
+	average_vals(Kokkos::View<int**, Kokkos::LayoutRight>& two_d_to_1d_, Kokkos::View<double*>& one_d_vals_, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& vals_, Kokkos::View<int*>& one_d_no_of_points_) : 
+					two_d_to_1d(two_d_to_1d_), one_d_vals(one_d_vals_), vals(vals_), one_d_no_of_points(one_d_no_of_points_) {}
+
+	void operator()(const int i) const {
+		int jmax = vals.extent_int(1);
+		int ind;
+		for (int j = 0; j < jmax; j++) {
+			ind = two_d_to_1d(i,j);
+			vals(i,j) = one_d_vals(ind) / one_d_no_of_points(ind);
+		}
+	}
+};
+
+void unify_boundary_vals(const RunConfig& run_config, Kokkos::View<int*>& one_d_no_of_points, 
+							Kokkos::View<int**, Kokkos::LayoutRight>& two_d_to_1d, Kokkos::View<double**, Kokkos::LayoutRight>& vals) {
+	Kokkos::View<double*> one_d_vals ("one d vals", run_config.point_count);
+	Kokkos::parallel_for(run_config.point_count, zero_out_1(one_d_vals));
+	Kokkos::parallel_for(run_config.active_panel_count, accumulate_vals(two_d_to_1d, one_d_vals, vals));
+	Kokkos::parallel_for(run_config.active_panel_count, average_vals(two_d_to_1d, one_d_vals, vals, one_d_no_of_points));
+}
+
 struct sol_2d_to_1d{
 	Kokkos::View<double*, Kokkos::HostSpace> area_1d;
 	Kokkos::View<double*, Kokkos::HostSpace> pots_1d;
@@ -389,39 +434,7 @@ void solution_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Kokkos
 						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& pots, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& soln, 
 						Kokkos::View<int*, Kokkos::HostSpace>& one_d_no_of_points, Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d) {
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {area.extent_int(0), area.extent_int(1)}), sol_2d_to_1d(area_1d, pots_1d, soln_1d, area, pots, soln, two_d_to_1d));
-	// Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.point_count), one_d_average(pots_1d, soln_1d, one_d_no_of_points));
-	// Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.point_count), poisson_regularize(pots_1d, area_1d, soln_1d));
 }
-
-// struct v_2d_to_1d{
-// 	Kokkos::View<double*, Kokkos::HostSpace> vec_1d;
-// 	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vec;
-// 	Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace> two_d_to_1d;
-// 	bool add;
-
-// 	v_2d_to_1d(Kokkos::View<double*, Kokkos::HostSpace>& vec_1d_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vec_, 
-// 					Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d_, bool add_) : vec_1d(vec_1d_), vec(vec_), two_d_to_1d(two_d_to_1d_), add(add_) {}
-
-// 	// KOKKOS_INLINE_FUNCTION
-// 	void operator()(const int i, const int j) const {
-// 		int loc = two_d_to_1d(i,j);
-// 		if (add) {
-// 			Kokkos::atomic_add(&vec_1d(loc), vec(i,j));
-// 		} else {
-// 			if (vec_1d(loc) == 0) {
-// 				Kokkos::atomic_add(&vec_1d(loc), vec(i,j));
-// 			}
-// 		}
-// 	}
-// };
-
-// void vec_2d_to_1d(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& vec_1d, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vec, 
-// 						Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d, bool add) {
-// 	for (int i = 0; i < vec_1d.extent_int(0); i++) {
-// 		vec_1d(i) = 0;
-// 	}
-// 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {vec.extent_int(0), vec.extent_int(1)}), v_2d_to_1d(vec_1d, vec, two_d_to_1d, add));
-// }
 
 template struct v_2d_to_1d<Kokkos::LayoutRight>;
 template struct v_2d_to_1d<Kokkos::LayoutStride>;

@@ -1,6 +1,8 @@
 add_library(specBSLPM
     fmm_interactions/inverse_poisson.cpp
     fmm_interactions/bve_vel.cpp
+    fmm_interactions/swe_vel.cpp
+    fmm_interactions/laplacian.cpp
     bve_time_step.cpp
     cubed_sphere_transforms.cpp
     deriv_funcs.cpp
@@ -12,7 +14,10 @@ add_library(specBSLPM
     initialize_cubed_sphere.cpp
     interp_funcs.cpp
     io_utils.cpp
-    mpi_utils.cpp)
+    mpi_utils.cpp
+    swe_time_step.cpp
+    swe_time_step_2.cpp
+    topography.cpp)
 
 target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels netCDF::netcdf)
 # target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos)
@@ -30,6 +35,10 @@ install(FILES
     fmm_interactions/inverse_poisson_impl.hpp
     fmm_interactions/bve_vel.hpp
     fmm_interactions/bve_vel_impl.hpp
+    fmm_interactions/swe_vel.hpp
+    fmm_interactions/swe_vel_impl.hpp
+    fmm_interactions/laplacian.hpp
+    fmm_interactions/laplacian_impl.hpp
     bve_time_step.hpp
     cubed_sphere_transforms.hpp
     cubed_sphere_transforms_impl.hpp
@@ -48,4 +57,7 @@ install(FILES
     io_utils.hpp
     mpi_utils.hpp
     run_config.hpp
+    swe_time_step.hpp
+    swe_time_step_2.hpp
+    topography.hpp
     DESTINATION ${PROJECT_SOURCE_DIR}/include)

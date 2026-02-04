@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
 			time_vals(i) = run_config.delta_t * i;
 		}
 		int dimids[3]; // lat, lon, time
-		int lon_dimid, lat_dimid, time_dimid, lat_varid, lon_varid, time_varid, uvel_id, vvel_id, vor_id, group_id;
+		int lon_dimid, lat_dimid, time_dimid, lat_varid, lon_varid, time_varid, uvel_id, vvel_id, vor_id, group_id, vel_x_id, vel_y_id, vel_z_id;
 		int point_dimid, point_varid, xco_varid, yco_varid, zco_varid, area_varid;
 		size_t start_nc[3], count_nc[3]; // where to write output
 		int tracer_varids[run_config.tracer_count];
@@ -172,6 +172,9 @@ int main(int argc, char* argv[]) {
 			nc_def_var(ncid, "vor", NC_DOUBLE, dims, dimids, &vor_id);
 			nc_def_var(ncid, "u_vel", NC_DOUBLE, dims, dimids, &uvel_id);
 			nc_def_var(ncid, "v_vel", NC_DOUBLE, dims, dimids, &vvel_id);
+			nc_def_var(ncid, "vel_x", NC_DOUBLE, dims, dimids, &vel_x_id);
+			nc_def_var(ncid, "vel_y", NC_DOUBLE, dims, dimids, &vel_y_id);
+			nc_def_var(ncid, "vel_z", NC_DOUBLE, dims, dimids, &vel_z_id);
 			for (int i = 0; i < run_config.tracer_count; i++) {
 				nc_def_var(ncid, std::string("tracer_" + run_config.tracers[i]).c_str(), NC_DOUBLE, dims, dimids, &tracer_varids[i]);
 			}
@@ -180,9 +183,15 @@ int main(int argc, char* argv[]) {
 			nc_put_att_text(ncid, vor_id, "units", strlen("1/s"), "1/s");
 			nc_put_att_text(ncid, uvel_id, "units", strlen("m/s"), "m/s");
 			nc_put_att_text(ncid, vvel_id, "units", strlen("m/s"), "m/s");
+			nc_put_att_text(ncid, vel_x_id, "units", strlen("m/s"), "m/s");
+			nc_put_att_text(ncid, vel_y_id, "units", strlen("m/s"), "m/s");
+			nc_put_att_text(ncid, vel_z_id, "units", strlen("m/s"), "m/s");
 			nc_put_att_text(ncid, vor_id, "long name", strlen("relative vorticity"), "relative vorticity");
 			nc_put_att_text(ncid, uvel_id, "long name", strlen("zonal velocity"), "zonal velocity");
 			nc_put_att_text(ncid, vvel_id, "long name", strlen("meridional velocity"), "meridional velocity");
+			nc_put_att_text(ncid, vel_x_id, "long name", strlen("x velocity"), "x velocity");
+			nc_put_att_text(ncid, vel_y_id, "long name", strlen("x velocity"), "y velocity");
+			nc_put_att_text(ncid, vel_z_id, "long name", strlen("x velocity"), "z velocity");
 			nc_enddef(ncid);
 			nc_put_att_text(ncid, NC_GLOBAL, "initial condition", strlen(run_config.initial_condition.c_str()), run_config.initial_condition.c_str());
 			nc_put_att_int(ncid, NC_GLOBAL, "point count", NC_INT, 1, &run_config.point_count);
@@ -236,8 +245,6 @@ int main(int argc, char* argv[]) {
 			nc_put_var_double(ncid, time_varid, &time_vals(0));
 		}
 		
-		int write_index = pow(run_config.interp_degree+1, 2) / 2;
-
 		Kokkos::fence();
 		MPI_Barrier(MPI_COMM_WORLD);
 		end = std::chrono::steady_clock::now();
@@ -300,7 +307,10 @@ int main(int argc, char* argv[]) {
 
 			Kokkos::parallel_for(run_config.active_panel_count, xyz_vel_to_uv_vel(d_xcos, d_ycos, d_zcos, d_vel_x, d_vel_y, d_vel_z, d_vel_u, d_vel_v));
 			Kokkos::deep_copy(vel_u, d_vel_u);
-			Kokkos::deep_copy(vel_v, d_vel_v);			
+			Kokkos::deep_copy(vel_v, d_vel_v);	
+			Kokkos::deep_copy(vel_x, d_vel_x);
+			Kokkos::deep_copy(vel_y, d_vel_y);
+			Kokkos::deep_copy(vel_z, d_vel_z);			
 			Kokkos::deep_copy(vors, d_vors);
 			Kokkos::deep_copy(passive_tracers, d_passive_tracers);
 			
@@ -309,12 +319,24 @@ int main(int argc, char* argv[]) {
 				nc_put_vara_double(ncid, uvel_id, start_nc, count_nc, &uvel_out(0,0));
 				interp_to_latlon(run_config, vel_v, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vvel_id, start_nc, count_nc, &vvel_out(0,0));
+				interp_to_latlon(run_config, vel_x, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				nc_put_vara_double(ncid, vel_x_id, start_nc, count_nc, &vvel_out(0,0));
+				interp_to_latlon(run_config, vel_y, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				nc_put_vara_double(ncid, vel_y_id, start_nc, count_nc, &vvel_out(0,0));
+				interp_to_latlon(run_config, vel_z, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				nc_put_vara_double(ncid, vel_z_id, start_nc, count_nc, &vvel_out(0,0));
 				
 			} else {
 				vec_2d_to_1d<Kokkos::LayoutRight>(run_config, one_d_vec_out, vel_u, two_d_to_1d, false);
 				nc_put_vara_double(ncid, uvel_id, start_nc, count_nc, &one_d_vec_out(0));
 				vec_2d_to_1d<Kokkos::LayoutRight>(run_config, one_d_vec_out, vel_v, two_d_to_1d, false);
 				nc_put_vara_double(ncid, vvel_id, start_nc, count_nc, &one_d_vec_out(0));
+				vec_2d_to_1d<Kokkos::LayoutRight>(run_config, one_d_vec_out, vel_x, two_d_to_1d, false);
+				nc_put_vara_double(ncid, vel_x_id, start_nc, count_nc, &one_d_vec_out(0));
+				vec_2d_to_1d<Kokkos::LayoutRight>(run_config, one_d_vec_out, vel_y, two_d_to_1d, false);
+				nc_put_vara_double(ncid, vel_y_id, start_nc, count_nc, &one_d_vec_out(0));
+				vec_2d_to_1d<Kokkos::LayoutRight>(run_config, one_d_vec_out, vel_z, two_d_to_1d, false);
+				nc_put_vara_double(ncid, vel_z_id, start_nc, count_nc, &one_d_vec_out(0));
 			}
 
 			start_nc[0] += 1;

@@ -16,6 +16,8 @@ struct RunConfig {
 	int end_time; // end time in seconds, 86400 = 1 day
 	int delta_t; // time step in seconds
 	int time_steps; // number of time steps
+	int output_freq; // output time frequency
+	bool output_vel; // whether or not to output velocity
 	std::string initial_condition; // options = sh43, 
 	bool balance_ic = true; // enforce int_S vor = 0
 	double fmm_theta = 0.7; // parameter for well separated threshold
@@ -28,6 +30,7 @@ struct RunConfig {
 	double kernel_eps; // kernel regularization epsilon
 	bool forcing = false;
 	std::string forcing_type;
+	std::string topo_type;
 
 	// mpi info
 	int mpi_p; // total number of MPI ranks

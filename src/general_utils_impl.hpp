@@ -141,6 +141,17 @@ struct zero_out {
 	}
 };
 
+struct zero_out_1 {
+	Kokkos::View<double*> vec;
+
+	zero_out_1(Kokkos::View<double*>& vec_) : vec(vec_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i) const {
+		vec(i) = 0;
+	}
+};
+
 KOKKOS_INLINE_FUNCTION
 void project_to_sphere(double& x, double& y, double& z) {
 	double pointnorm = Kokkos::sqrt(x*x+y*y+z*z);
@@ -183,11 +194,35 @@ struct xyz_vel_to_uv_vel {
 			yc = vel_y(i,j);
 			zc = vel_z(i,j);
 			if (abs(z) < 1 - 1e-16) { // away from pole
-				vel_u(i,j) = (-y*xc + x*yc)/sqrt(x*x+y*y);
-				vel_v(i,j) = ((x*xc+y*yc)*z-(x*x+y*y)*zc)/sqrt(x*x+y*y);
+				vel_u(i,j) = (-y*xc + x*yc)/Kokkos::sqrt(x*x+y*y);
+				vel_v(i,j) = ((x*xc+y*yc)*z-(x*x+y*y)*zc)/Kokkos::sqrt(x*x+y*y);
 			} else {
 				vel_u(i,j) = 0;
 				vel_v(i,j) = 0;
+			}
+		}
+	}
+};
+
+KOKKOS_INLINE_FUNCTION
+void xyz_to_latlon(double& lat, double& lon, const double x, const double y, const double z) {
+	// turns cartesian coordinates to spherical coordinates
+	lat = M_PI / 2.0 - Kokkos::atan2(Kokkos::sqrt(x * x + y * y), z); // colatitude
+	lon = Kokkos::atan2(y, x);                   							// longitude
+}
+
+struct filter_vals {
+	Kokkos::View<double**, Kokkos::LayoutRight> vals;
+	double thresh;
+
+	filter_vals(Kokkos::View<double**, Kokkos::LayoutRight>& vals_, double thresh_) : vals(vals_), thresh(thresh_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i) const {
+		int jmax = vals.extent_int(1);
+		for (int j = 0; j < jmax; j++) {
+			if (Kokkos::abs(vals(i,j)) < thresh) {
+				vals(i,j) = 0.0;
 			}
 		}
 	}

@@ -12,7 +12,7 @@
 #include "interp_funcs_impl.hpp"
 #include "general_utils_impl.hpp"
 
-struct departure_to_target {
+struct bve_departure_to_target {
 	Kokkos::View<double**, Kokkos::LayoutRight> zcos;
 	Kokkos::View<double**, Kokkos::LayoutRight> dep_x;
 	Kokkos::View<double**, Kokkos::LayoutRight> dep_y;
@@ -26,7 +26,7 @@ struct departure_to_target {
 	int offset;
 	double omega;
 
-	departure_to_target(Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight>& dep_x_, 
+	bve_departure_to_target(Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight>& dep_x_, 
 						Kokkos::View<double**, Kokkos::LayoutRight>& dep_y_, Kokkos::View<double**, Kokkos::LayoutRight>& dep_z_, 
 						Kokkos::View<double**, Kokkos::LayoutRight>& vors_, Kokkos::View<double**, Kokkos::LayoutRight>& new_vors_, 
 						Kokkos::View<double***, Kokkos::LayoutRight>& passive_tracers_, Kokkos::View<double***, Kokkos::LayoutRight>& new_passive_tracers_,
@@ -66,7 +66,7 @@ struct departure_to_target {
 	}
 };
 
-struct disp_update {
+struct bve_disp_update {
 	Kokkos::View<double**, Kokkos::LayoutRight> xcos;
 	Kokkos::View<double**, Kokkos::LayoutRight> ycos;
 	Kokkos::View<double**, Kokkos::LayoutRight> zcos;
@@ -82,7 +82,7 @@ struct disp_update {
 	double omega;
 	int offset;
 
-	disp_update(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
+	bve_disp_update(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
 				Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_, 
 				Kokkos::View<double**, Kokkos::LayoutRight>& vor_, Kokkos::View<double**, Kokkos::LayoutRight>& new_vor_, Kokkos::View<double**, Kokkos::LayoutRight>& disp_x_, 
 				Kokkos::View<double**, Kokkos::LayoutRight>& disp_y_, Kokkos::View<double**, Kokkos::LayoutRight>& disp_z_, double dt_, double omega_, int offset_) : xcos(xcos_), 
@@ -104,7 +104,7 @@ struct disp_update {
 	}
 };
 
-struct disp_interp {
+struct bve_disp_interp {
 	Kokkos::View<double**, Kokkos::LayoutRight> xcos;
 	Kokkos::View<double**, Kokkos::LayoutRight> ycos;
 	Kokkos::View<double**, Kokkos::LayoutRight> zcos;
@@ -121,7 +121,7 @@ struct disp_interp {
 	int offset;
 	int degree;
 
-	disp_interp(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
+	bve_disp_interp(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
 				Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_, 
 				Kokkos::View<double**, Kokkos::LayoutRight>& disp_x_, Kokkos::View<double**, Kokkos::LayoutRight>& disp_y_, Kokkos::View<double**, Kokkos::LayoutRight>& disp_z_, 
 				Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals_, Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels_, double dt_, double omega_, int offset_, int degree_) : 
@@ -159,17 +159,17 @@ struct disp_interp {
 	}
 };
 
-void displacement_upward_pass(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+void bve_displacement_upward_pass(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
 								Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<double**, Kokkos::LayoutRight>& vel_x, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y, 
 								Kokkos::View<double**, Kokkos::LayoutRight>& vel_z, Kokkos::View<double**, Kokkos::LayoutRight>& vor, Kokkos::View<double**, Kokkos::LayoutRight>& new_vor, 
 								Kokkos::View<double**, Kokkos::LayoutRight>& disp_x, Kokkos::View<double**, Kokkos::LayoutRight>& disp_y, Kokkos::View<double**, Kokkos::LayoutRight>& disp_z, 
 								Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals, double dt, double omega) {
 	int offset = cubed_sphere_panels.extent_int(0) - run_config.active_panel_count;
-	Kokkos::parallel_for(run_config.active_panel_count, disp_update(xcos, ycos, zcos, vel_x, vel_y, vel_z, vor, new_vor, disp_x, disp_y, disp_z, dt, omega, offset));
-	Kokkos::parallel_for(offset, disp_interp(xcos, ycos, zcos, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z, interp_vals, cubed_sphere_panels, dt, omega, offset, run_config.interp_degree));
+	Kokkos::parallel_for(run_config.active_panel_count, bve_disp_update(xcos, ycos, zcos, vel_x, vel_y, vel_z, vor, new_vor, disp_x, disp_y, disp_z, dt, omega, offset));
+	Kokkos::parallel_for(offset, bve_disp_interp(xcos, ycos, zcos, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z, interp_vals, cubed_sphere_panels, dt, omega, offset, run_config.interp_degree));
 }
 
-struct find_departure_points {
+struct bve_find_departure_points {
 	Kokkos::View<double**, Kokkos::LayoutRight> xcos;
 	Kokkos::View<double**, Kokkos::LayoutRight> ycos;
 	Kokkos::View<double**, Kokkos::LayoutRight> zcos;
@@ -193,7 +193,7 @@ struct find_departure_points {
 	int offset;
 	int degree;
 
-	find_departure_points(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
+	bve_find_departure_points(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, 
 							Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_0_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_0_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_0_, 
 							Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_1_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_1_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_1_, 
 							Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_2_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_2_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_2_, 
@@ -358,7 +358,7 @@ void bve_back_rk4_step(const RunConfig& run_config, Kokkos::View<double**, Kokko
 	Kokkos::View<double**, Kokkos::LayoutRight> vel_y_1 ("vel y 1", run_config.active_panel_count, dim2size);
 	Kokkos::View<double**, Kokkos::LayoutRight> vel_z_1 ("vel z 1", run_config.active_panel_count, dim2size);
 
-	displacement_upward_pass(run_config, xcos, ycos, zcos, vel_x, vel_y, vel_z, vors, disp_vors, disp_x, disp_y, disp_z, cubed_sphere_panels, interp_vals, 0.5*run_config.delta_t, run_config.omega);
+	bve_displacement_upward_pass(run_config, xcos, ycos, zcos, vel_x, vel_y, vel_z, vors, disp_vors, disp_x, disp_y, disp_z, cubed_sphere_panels, interp_vals, 0.5*run_config.delta_t, run_config.omega);
 	bve_forcing(run_config, xcos, ycos, zcos, disp_vors, effective_vorticity, time);
 	upward_pass(run_config, interp_vals, cubed_sphere_panels, area, effective_vorticity, proxy_source_vors);
 	bve_vel_interactions(run_config, disp_x, disp_y, disp_z, proxy_target_1, proxy_target_2, proxy_target_3, proxy_source_vors, interaction_list, cubed_sphere_panels, interp_vals);
@@ -374,7 +374,7 @@ void bve_back_rk4_step(const RunConfig& run_config, Kokkos::View<double**, Kokko
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_2.extent_int(0), proxy_target_2.extent_int(1)}), zero_out(proxy_target_2));
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_3.extent_int(0), proxy_target_3.extent_int(1)}), zero_out(proxy_target_3));
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_source_vors.extent_int(0), proxy_source_vors.extent_int(1)}), zero_out(proxy_source_vors));
-	displacement_upward_pass(run_config, xcos, ycos, zcos, vel_x_1, vel_y_1, vel_z_1, vors, disp_vors, disp_x, disp_y, disp_z, cubed_sphere_panels, interp_vals, 0.5*run_config.delta_t, run_config.omega);
+	bve_displacement_upward_pass(run_config, xcos, ycos, zcos, vel_x_1, vel_y_1, vel_z_1, vors, disp_vors, disp_x, disp_y, disp_z, cubed_sphere_panels, interp_vals, 0.5*run_config.delta_t, run_config.omega);
 	bve_forcing(run_config, xcos, ycos, zcos, disp_vors, effective_vorticity, time);
 	upward_pass(run_config, interp_vals, cubed_sphere_panels, area, effective_vorticity, proxy_source_vors);
 	bve_vel_interactions(run_config, disp_x, disp_y, disp_z, proxy_target_1, proxy_target_2, proxy_target_3, proxy_source_vors, interaction_list, cubed_sphere_panels, interp_vals);
@@ -391,7 +391,7 @@ void bve_back_rk4_step(const RunConfig& run_config, Kokkos::View<double**, Kokko
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_2.extent_int(0), proxy_target_2.extent_int(1)}), zero_out(proxy_target_2));
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_3.extent_int(0), proxy_target_3.extent_int(1)}), zero_out(proxy_target_3));
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_source_vors.extent_int(0), proxy_source_vors.extent_int(1)}), zero_out(proxy_source_vors));
-	displacement_upward_pass(run_config, xcos, ycos, zcos, vel_x_2, vel_y_2, vel_z_2, vors, disp_vors, disp_x, disp_y, disp_z, cubed_sphere_panels, interp_vals, run_config.delta_t, run_config.omega);
+	bve_displacement_upward_pass(run_config, xcos, ycos, zcos, vel_x_2, vel_y_2, vel_z_2, vors, disp_vors, disp_x, disp_y, disp_z, cubed_sphere_panels, interp_vals, run_config.delta_t, run_config.omega);
 	bve_forcing(run_config, xcos, ycos, zcos, disp_vors, effective_vorticity, time);
 	upward_pass(run_config, interp_vals, cubed_sphere_panels, area, effective_vorticity, proxy_source_vors);
 	bve_vel_interactions(run_config, disp_x, disp_y, disp_z, proxy_target_1, proxy_target_2, proxy_target_3, proxy_source_vors, interaction_list, cubed_sphere_panels, interp_vals);
@@ -405,13 +405,13 @@ void bve_back_rk4_step(const RunConfig& run_config, Kokkos::View<double**, Kokko
 	Kokkos::View<double**, Kokkos::LayoutRight> dep_y ("departure points y", run_config.active_panel_count, dim2size);
 	Kokkos::View<double**, Kokkos::LayoutRight> dep_z ("departure points z", run_config.active_panel_count, dim2size);
 	int offset = cubed_sphere_panels.extent_int(0) - run_config.active_panel_count;
-	Kokkos::parallel_for(xcos.extent_int(0), find_departure_points(xcos, ycos, zcos, vel_x, vel_y, vel_z, vel_x_1, vel_y_1, vel_z_1, vel_x_2, vel_y_2, vel_z_2, vel_x_3, vel_y_3, vel_z_3, dep_x, dep_y, dep_z, cubed_sphere_panels, run_config.delta_t, offset, run_config.interp_degree));
+	Kokkos::parallel_for(xcos.extent_int(0), bve_find_departure_points(xcos, ycos, zcos, vel_x, vel_y, vel_z, vel_x_1, vel_y_1, vel_z_1, vel_x_2, vel_y_2, vel_z_2, vel_x_3, vel_y_3, vel_z_3, dep_x, dep_y, dep_z, cubed_sphere_panels, run_config.delta_t, offset, run_config.interp_degree));
 	
 	// compute update from departure points to target points
 	Kokkos::View<double**, Kokkos::LayoutRight> new_vors ("new vorticities", run_config.active_panel_count, dim2size);
 	Kokkos::View<double***, Kokkos::LayoutRight> new_passive_tracers("new passive tarcers", run_config.active_panel_count, dim2size, run_config.tracer_count);
 	
-	Kokkos::parallel_for(run_config.active_panel_count, departure_to_target(
+	Kokkos::parallel_for(run_config.active_panel_count, bve_departure_to_target(
 		zcos, dep_x, dep_y, dep_z, vors, new_vors, passive_tracers, new_passive_tracers, cubed_sphere_panels, run_config.interp_degree, offset, run_config.omega));
 
 	Kokkos::parallel_for(Kokkos::MDRangePolicy({0, 0}, {vors.extent_int(0), vors.extent_int(1)}), copy_kokkos_view_2(vors, new_vors));

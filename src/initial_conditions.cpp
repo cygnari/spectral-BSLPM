@@ -143,6 +143,31 @@ void poisson_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokk
 	Kokkos::fence();
 }
 
+struct bve_rotation {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vorticity;
+
+	bve_rotation(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, 
+			Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity_) :
+			xcos(xcos_), ycos(ycos_), zcos(zcos_), vorticity(vorticity_) {}
+
+	void operator()(const int i) const {
+		int jmax = xcos.extent_int(1);
+		double x, y, z, lat, lon;
+		for (int j = 0; j < jmax; j++) {
+			x = xcos(i,j);
+			y = ycos(i,j);
+			z = zcos(i,j);
+			xyz_to_latlon(lat, lon, x, y, z);
+			vorticity(i,j) = z / 86400.0;
+		}
+	}
+};
+
 struct bve_rh4 {
 	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
 	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
@@ -310,6 +335,9 @@ void bve_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 	} else if (run_config.initial_condition == "pv") {
 		Kokkos::parallel_for(
 			Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), bve_polar_vortex(xcos, ycos, zcos, vorticity));
+	} else if (run_config.initial_condition == "rot") {
+		Kokkos::parallel_for(
+			Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), bve_rotation(xcos, ycos, zcos, vorticity));
 	}
 
 	double integrated_vor = 0;
@@ -336,5 +364,75 @@ void tracer_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokko
 							tracer_z(zcos, passive_tracers, i));
 		}
 	}
+}
 
+struct swe_test_case_2 {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_test_case_2(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : 
+					xcos(xcos_), ycos(ycos_), zcos(zcos_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i) const {
+		int jmax = xcos.extent_int(1);
+		// double alpha = 0.0; // rotation 
+		double lat, lon;
+		double u0 = M_PI/(6.0*86400.0); // 2pi/(12 days), converted to 1/s 
+		// double g = 9.81 / 6371000.0; // 9.81 m/s^2, normalized by Earth radius
+		for (int j = 0; j < jmax; j++) {
+			xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
+			vors(i,j) = 2 * u0 * sin(lat);
+			divs(i,j) = 0.0;
+			height(i,j) = 2.94e4 / (6371000.0*6371000.0) - (2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+			// height(i,j) = zcos(i,j);
+		}
+	}
+};
+
+struct swe_test_case_5 {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_test_case_5(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : 
+					xcos(xcos_), ycos(ycos_), zcos(zcos_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i) const {
+		int jmax = xcos.extent_int(1);
+		// double alpha = 0.0; // rotation 
+		double lat, lon;
+		double u0 = 20.0 / 6371000.0; // 20 m/s, normalized by Earth radius
+		// double g = 9.81 / 6371000.0; // 9.81 m/s^2, normalized by Earth radius
+		for (int j = 0; j < jmax; j++) {
+			xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
+			vors(i,j) = 2 * u0 * sin(lat);
+			divs(i,j) = 0.0;
+			height(i,j) = 5960.0*9.81 / (6371000.0*6371000.0) - (u0*M_PI*M_PI/(86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+		}
+	}
+};
+
+void swe_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divergence, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area) {
+	if (run_config.initial_condition == "tc2") {
+		Kokkos::parallel_for(run_config.active_panel_count, swe_test_case_2(xcos, ycos, zcos, vorticity, divergence, height));
+	} else if (run_config.initial_condition == "tc5") {
+		Kokkos::parallel_for(run_config.active_panel_count, swe_test_case_2(xcos, ycos, zcos, vorticity, divergence, height));
+	}
 }

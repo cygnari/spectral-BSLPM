@@ -70,6 +70,14 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	  	}
 	  } else if (word1 == "forcing_type") {
 	  	run_config.forcing_type = word2;
+	  } else if (word1 == "topo_type") {
+	  	run_config.topo_type = word2;
+	  } else if (word1 == "output_freq") {
+	  	run_config.output_freq = stoi(word2);
+	  } else if (word1 == "output_vel") {
+	  	if (stoi(word2) == 1) {
+	  		run_config.output_vel = true;
+	  	}
 	  } else {
 	    run_config.fmm_cluster_thresh = 4 * pow(run_config.interp_degree + 1, 2);
 	    run_config.time_steps = run_config.end_time / run_config.delta_t;
