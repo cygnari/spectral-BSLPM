@@ -384,13 +384,11 @@ struct swe_test_case_2 {
 		// double alpha = 0.0; // rotation 
 		double lat, lon;
 		double u0 = M_PI/(6.0*86400.0); // 2pi/(12 days), converted to 1/s 
-		// double g = 9.81 / 6371000.0; // 9.81 m/s^2, normalized by Earth radius
 		for (int j = 0; j < jmax; j++) {
 			xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
 			vors(i,j) = 2 * u0 * sin(lat);
 			divs(i,j) = 0.0;
 			height(i,j) = 2.94e4 / (6371000.0*6371000.0) - (2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
-			// height(i,j) = zcos(i,j);
 		}
 	}
 };
@@ -413,12 +411,26 @@ struct swe_test_case_5 {
 		// double alpha = 0.0; // rotation 
 		double lat, lon;
 		double u0 = 20.0 / 6371000.0; // 20 m/s, normalized by Earth radius
-		// double g = 9.81 / 6371000.0; // 9.81 m/s^2, normalized by Earth radius
 		for (int j = 0; j < jmax; j++) {
 			xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
 			vors(i,j) = 2 * u0 * sin(lat);
 			divs(i,j) = 0.0;
 			height(i,j) = 5960.0*9.81 / (6371000.0*6371000.0) - (u0*M_PI*M_PI/(86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+		}
+	}
+};
+
+struct apply_topo {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> topo;
+
+	apply_topo(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo_):
+				height(height_), topo(topo_) {}
+
+	void operator()(const int i) const {
+		int jmax = height.extent_int(1);
+		for (int j = 0; j < jmax; j++) {
+			height(i,j) -= topo(i,j);
 		}
 	}
 };
@@ -429,10 +441,12 @@ void swe_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divergence, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, 
-					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area) {
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo) {
 	if (run_config.initial_condition == "tc2") {
-		Kokkos::parallel_for(run_config.active_panel_count, swe_test_case_2(xcos, ycos, zcos, vorticity, divergence, height));
+		Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), swe_test_case_2(xcos, ycos, zcos, vorticity, divergence, height));
 	} else if (run_config.initial_condition == "tc5") {
-		Kokkos::parallel_for(run_config.active_panel_count, swe_test_case_2(xcos, ycos, zcos, vorticity, divergence, height));
+		Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), swe_test_case_5(xcos, ycos, zcos, vorticity, divergence, height));
 	}
+	Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), apply_topo(height, topo));
 }

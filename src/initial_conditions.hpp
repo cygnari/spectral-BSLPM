@@ -32,6 +32,7 @@ void swe_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vorticity, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divergence, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, 
-					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area);
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo);
 
 #endif

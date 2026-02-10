@@ -36,23 +36,3 @@ void laplacian(const RunConfig& run_config, Kokkos::View<double**, Kokkos::Layou
 	Kokkos::parallel_for(Kokkos::RangePolicy(lb, ub), panel_laplacian(laplacian_vals, func_vals, xi_derivs_workspace, eta_derivs_workspace, xieta_derivs_workspace, 
 																		xixi_derivs_workspace, etaeta_derivs_workspace, cubed_sphere_panels, run_config.interp_degree, lb));
 }
-
-// void single_panel_grad(double* x_comps, double* y_comps, double* z_comps, double* f_vals, int degree, double min_xi, double max_xi, double min_eta, double max_eta, int face) {
-// 	double xi_offset = 0.5*(min_xi + max_xi);
-// 	double xi_scale = 0.5*(max_xi - min_xi);
-// 	double eta_offset = 0.5*(min_eta + max_eta);
-// 	double eta_scale = 0.5*(max_eta - min_eta);
-// 	double xi, eta;
-// 	double xi_derivs_workspace[121], eta_derivs_workspace[121];
-// 	bli_deriv_xi(xi_derivs_workspace, f_vals, degree, min_xi, max_xi);
-// 	bli_deriv_eta(eta_derivs_workspace, f_vals, degree, min_eta, max_eta);
-// 	int index;
-// 	for (int i = 0; i < degree+1; i++) {
-// 		xi = cos(M_PI * i / degree) * xi_scale + xi_offset;
-// 		for (int j = 0; j < degree+1; j++) {
-// 			eta = cos(M_PI * j / degree) * eta_scale + eta_offset;
-// 			index = i * (degree+1) + j;
-// 			xyzvec_from_xietavec(x_comps[index], y_comps[index], z_comps[index], xi_derivs_workspace[index], eta_derivs_workspace[index], face, xi, eta);
-// 		}
-// 	}
-// }

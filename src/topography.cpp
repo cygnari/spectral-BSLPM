@@ -47,7 +47,6 @@ void apply_topography(const RunConfig& run_config, Kokkos::View<double**, Kokkos
 	if (run_config.topo_type == "cone") {
 		Kokkos::parallel_for(run_config.active_panel_count, cone_mountain(xcos, ycos, zcos, disp_x, disp_y, disp_z, height, effective_height));
 	} else {
-		// effective_height = height;
 		Kokkos::parallel_for(Kokkos::MDRangePolicy({0, 0}, {height.extent_int(0), height.extent_int(1)}), copy_kokkos_view_2(effective_height, height));
 	}
 }

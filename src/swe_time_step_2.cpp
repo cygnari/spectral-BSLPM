@@ -93,23 +93,48 @@ struct swe_tendency_computation_2{
 		double max_xi = Kokkos::numbers::pi / 4.0 * cubed_sphere_panels(i+offset).max_xi;
 		double min_eta = Kokkos::numbers::pi / 4.0 * cubed_sphere_panels(i+offset).min_eta;
 		double max_eta = Kokkos::numbers::pi / 4.0 * cubed_sphere_panels(i+offset).max_eta;
+		double u0 = (Kokkos::numbers::pi) / (6.0*86400.0);
 		double xi_vel[121], eta_vel[121], curl_rad_comp[121], lap_comp[121], dp, height_lap[121], div_comp_xi[121], div_comp_eta[121], height_div[121], zetaf;
+		double dp_vals[121], dp_lap[121], uvel, vvel, x, y, z, xc, yc, zc;
+		double lat, lon;
 		for (int j = 0; j < xcos.extent_int(1); j++) {
 			xietavec_from_xyzvec(xi_vel[j], eta_vel[j], vel_x(i,j), vel_y(i,j), vel_z(i,j), xcos(i,j), ycos(i,j), zcos(i,j));
+			// dp = xi_vel[j]*xi_vel[j] + eta_vel[j]*eta_vel[j];
 			zetaf = vor(i,j) + 2 * omega * zcos(i,j);
 			xi_vel[j] *= zetaf;
 			eta_vel[j] *= zetaf;
 			dp = vel_x(i,j)*vel_x(i,j) + vel_y(i,j)*vel_y(i,j) + vel_z(i,j)*vel_z(i,j);
-			lap_comp[j] = height(i,j) + 0.5*dp;
+			x = xcos(i,j);
+			y = ycos(i,j);
+			z = zcos(i,j);
+			xyz_to_latlon(lat, lon, x, y, z);
+			dp -= u0*u0*Kokkos::cos(lat)*Kokkos::cos(lat);
+			// if (abs(zcos(i,j)) < 1.0-1e-16) {
+			// 	x = xcos(i,j);
+			// 	y = ycos(i,j);
+			// 	z = zcos(i,j);
+			// 	xc = vel_x(i,j);
+			// 	yc = vel_y(i,j);
+			// 	zc = vel_z(i,j);
+			// 	uvel = (-y*xc + x*yc)/Kokkos::sqrt(x*x+y*y);
+			// 	vvel = ((x*xc+y*yc)*z-(x*x+y*y)*zc)/Kokkos::sqrt(x*x+y*y);
+			// 	// uvel = (-ycos(i,j)*vel_x(i,j) + xcos(i,j)*vel_y(i,j))/Kokkos::sqrt(x*x+y*y);
+			// 	// vel_v(i,j) = ((x*xc+y*yc)*z-(x*x+y*y)*zc)/Kokkos::sqrt(x*x+y*y);
+			// 	dp = uvel*uvel +vvel*vvel;
+			// } else {	
+			// 	dp = 0;
+			// }
+			lap_comp[j] = height(i,j);
+			dp_vals[j] = 0.5*dp;
 			div_comp_xi[j] = height(i,j) * xi_vel[j];
 			div_comp_eta[j] = height(i,j) * eta_vel[j];
 		}
 		single_panel_curl_rad_comp(curl_rad_comp, xi_vel, eta_vel, min_xi, max_xi, min_eta, max_eta, degree);
-		single_panel_lap(height_lap, lap_comp, min_xi, max_xi, min_eta, max_eta, degree);
+		single_panel_lap_no_filter(height_lap, lap_comp, min_xi, max_xi, min_eta, max_eta, degree);
+		single_panel_lap(dp_lap, dp_vals, min_xi, max_xi, min_eta, max_eta, degree);
 		single_panel_div(height_div, div_comp_xi, div_comp_eta, min_xi, max_xi, min_eta, max_eta, degree);
 
-		double abs_vor, abs_vor_tend, x, y, z, grad_comp, vel_u;
-		double lat, lon;
+		double abs_vor, abs_vor_tend, grad_comp, vel_u;
 		for (int j = 0; j < xcos.extent_int(1); j++) {
 			x = xcos(i,j);
 			y = ycos(i,j);
@@ -118,39 +143,45 @@ struct swe_tendency_computation_2{
 			abs_vor = vor(i,j) + 2.0 * omega * z;
 			abs_vor_tend = -div(i,j) * abs_vor;
 			vor_tend(i,j) = abs_vor_tend - 2.0 * omega * vel_z(i,j);
-			
-			// div_tend(i,j) = 2.0*omega*zcos(i,j)*vor(i,j); // f * zeta
-			div_tend(i,j) = -curl_rad_comp[j] - height_lap[j];
+			div_tend(i,j) = curl_rad_comp[j]/2.0 - height_lap[j] - dp_lap[j]; 
+			div_tend(i,j) = 0;
 			height_tend(i,j) = -height_div[j];
+			height_tend(i,j) = 0;
 
-			// // grad_comp = vel_grad_11[j]*vel_grad_11[j] + vel_grad_12[j]*vel_grad_21[j] + vel_grad_13[j]*vel_grad_31[j] + 
-			// // 			vel_grad_21[j]*vel_grad_12[j] + vel_grad_22[j]*vel_grad_22[j] + vel_grad_23[j]*vel_grad_32[j] + 
-			// // 			vel_grad_31[j]*vel_grad_13[j] + vel_grad_32[j]*vel_grad_23[j] + vel_grad_33[j]*vel_grad_33[j];
-			// // div_tend(i,j) -= grad_comp;
-			// div_tend(i,j) += 2.0 * (M_PI/(6.0*86400.0)*M_PI/(6.0*86400.0)) * Kokkos::sin(lat) * Kokkos::sin(lat); // grad comp
+			// if ((i == 1) and (j == 1)) {
+			// 	dp = vel_x(i,j)*vel_x(i,j) + vel_y(i,j)*vel_y(i,j) + vel_z(i,j)*vel_z(i,j);
+			// 	uvel = (-y*vel_x(i,j) + x*vel_y(i,j))/Kokkos::sqrt(x*x+y*y);
+			// 	std::cout << div_tend(i,j) << std::endl;
+			// 	std::cout << lat << " " << lon << std::endl;
+			// 	// std::cout << u0 << std::endl;
+			// 	std::cout << "Curl term: " << curl_rad_comp[j]/2.0 << std::endl;
+			// 	std::cout << "Curl term: " << -2.0*(u0+omega)*u0*(Kokkos::cos(lat)*Kokkos::cos(lat)-2.0*Kokkos::sin(lat)*Kokkos::sin(lat)) << std::endl;
+			// 	std::cout << "height lap: " << -height_lap[j] << std::endl;
+			// 	std::cout << "height lap: " << -(u0+2*omega)*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat)) << std::endl;
+			// 	std::cout << "dp lap: " << dp_lap[j] << std::endl;
+			// 	std::cout << "dp lap: " << u0*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat)) << std::endl;
+			// 	std::cout << "dp: " << dp << std::endl;
+			// 	std::cout << "dp: " << u0*u0*Kokkos::cos(lat)*Kokkos::cos(lat) << std::endl;
+			// 	std::cout << "u vel: " << uvel << std::endl;
+			// 	std::cout << "u vel: " << u0 * Kokkos::cos(lat) << std::endl;
+			// 	// std::cout << "dp lap" << std::endl;
+			// 	// for (int k = 0; k < xcos.extent_int(1); k++) {
+			// 	// 	std::cout << dp_lap[k] << std::endl;
+			// 	// }
+			// 	// std::cout << "dp vals" << std::endl;
+			// 	// for (int k = 0; k < xcos.extent_int(1); k++) {
+			// 	// 	std::cout << dp_vals[k] << std::endl;
+			// 	// }
+			// 	// std::cout << 2.0 * (Kokkos::numbers::pi/(6.0*86400.0)) * Kokkos::sin(lat) << std::endl;
 
-			// // div_tend(i,j) -= (M_PI/(6.0*86400.0) + 2.0 * omega) * (M_PI/(6.0*86400.0)) * (2.0*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat)); // height lap
-			// div_tend(i,j) -= height_lap(i,j);
-
-			// dp = vel_x(i,j)*vel_x(i,j) + vel_y(i,j)*vel_y(i,j) + vel_z(i,j)*vel_z(i,j);
-			// div_tend(i,j) -= dp;
-			
-			// vel_u = -y*vel_x(i,j) + x*vel_y(i,j);
-			// if ((x*x+y*y) > 1e-16) {
-			// 	div_tend(i,j) -= 2.0 * omega * vel_u; // grad f term
+			// 	// std::cout << vel_x(i,j) << " " << vel_y(i,j) << " " << vel_z(i,j) << std::endl;
+			// 	// std::cout << xcos(i,j) << " " << ycos(i,j) << " " << zcos(i,j) << std::endl;
+			// 	// std::cout << xi_vel[j] << " " << eta_vel[j] << std::endl;
+			// 	// xietavec_from_xyzvec_2(xi_vel[j], eta_vel[j], vel_x(i,j), vel_y(i,j), vel_z(i,j), xcos(i,j), ycos(i,j), zcos(i,j));
+			// 	// break;
+			// 	// throw std::runtime_error("test");
+			// 	// std::cout << height_tend(i,j) << std::endl;
 			// }
-			if ((i == 0) and (j == 0)) {
-				std::cout << div_tend(i,j) << std::endl;
-				std::cout << lat << " " << lon << std::endl;
-				std::cout << "Curl term: " << -curl_rad_comp[j] << std::endl;
-				// std::cout << "u dot u: " << -dp << std::endl;
-				std::cout << "height lap: " << -height_lap[j] << std::endl;
-				std::cout << height_tend(i,j) << std::endl;
-				// std::cout << "double dot prod: " << grad_comp << std::endl;
-				// std::cout << "f*zeta: " << 2.0*omega*zcos(i,j)*vor(i,j) << std::endl;
-			}
-			// // div_tend(i,j) = 0.0;
-			// height_tend(i,j) = -height(i,j) * div(i,j);
 		}
 	}
 };
@@ -394,8 +425,8 @@ struct swe_compute_arrival_values_2 {
 			a_div(i,j) = div(i,j) + dt/6.0*(div_tend_1(i,j) + 2.0*div_tend_2(i,j) + 2.0*div_tend_3(i,j) + div_tend_4(i,j));
 			a_height(i,j) = height(i,j) + dt/6.0*(height_tend_1(i,j) + 2.0*height_tend_2(i,j) + 2.0*height_tend_3(i,j) + height_tend_4(i,j));
 			// a_vor(i,j) = vor(i,j) + dt*vor1;
-			// a_div(i,j) = div(i,j) + dt*div1;
-			// a_height(i,j) = height(i,j) + dt*h1;
+			// a_div(i,j) = div(i,j) + dt*div_tend_1(i,j);
+			// a_height(i,j) = height(i,j) + dt*height_tend_1(i,j);
 		}
 	}
 };

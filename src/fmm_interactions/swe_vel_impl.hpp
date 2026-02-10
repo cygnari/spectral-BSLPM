@@ -132,7 +132,7 @@ struct swe_vel_panel_interaction_2 {
                 // if (dp < 1.0 - 1e-15) { // constant is -1/(4pi)
                 gfcomp = -0.07957747154594767 / (1.0 - dp + kernel_eps);
                 gfcomp1 = gfcomp * source_vals_vor(source_panel, k);
-                gfcomp2 = -0.07957747154594767 / (1.0 - dp2 + kernel_eps) * source_vals_div(source_panel, k);
+                gfcomp2 = 0.07957747154594767 / (1.0 - dp2 + kernel_eps) * source_vals_div(source_panel, k);
                 Kokkos::atomic_add(&target_pots_1(target_panel, j), gfcomp1*(xyz_t[1]*z_s - xyz_t[2]*y_s));
                 Kokkos::atomic_add(&target_pots_2(target_panel, j), gfcomp1*(xyz_t[2]*x_s - xyz_t[0]*z_s));
                 Kokkos::atomic_add(&target_pots_3(target_panel, j), gfcomp1*(xyz_t[0]*y_s - xyz_t[1]*x_s));

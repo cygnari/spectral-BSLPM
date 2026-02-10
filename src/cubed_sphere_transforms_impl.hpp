@@ -275,4 +275,45 @@ void xietavec_from_xyzvec(double& xi_comp, double& eta_comp, double x_comp, doub
 	}
 }
 
+KOKKOS_INLINE_FUNCTION
+void xietavec_from_xyzvec_2(double& xi_comp, double& eta_comp, double x_comp, double y_comp, double z_comp, double x, double y, double z) {
+	double xieta[2], colat_comp, lon_comp;
+	int face;
+	xieta_from_xyz(x, y, z, xieta);
+	std::cout << xieta[0] << " " << xieta[1] << std::endl;
+	face = face_from_xyz(x, y, z);
+	std::cout << face << std::endl;
+	double X, Y, X2, Y2, C, D, delta;
+	if (Kokkos::abs(z) < 1-1e-16) {
+		// away from poles
+		lon_comp = (-y*x_comp + x*y_comp) / Kokkos::sqrt(x*x+y*y);
+		colat_comp = ((x*x_comp + y*y_comp)*z -(x*x+y*y)*z_comp) / Kokkos::sqrt(x*x+y*y);
+		std::cout << lon_comp << " " << colat_comp << std::endl;
+		X = Kokkos::tan(xieta[0]);
+		Y = Kokkos::tan(xieta[1]);
+		X2 = X*X;
+		Y2 = Y*Y;
+		C = Kokkos::sqrt(1+X2);
+		D = Kokkos::sqrt(1+Y2);
+		delta = 1+X2+Y2;
+		std::cout << X << " " << Y << " " << C << " " << D << " " << delta << std::endl;
+		if ((face == 0) or (face == 1) or (face == 2) or (face == 3)) {
+			xi_comp = C*D/Kokkos::sqrt(delta)*lon_comp;
+			eta_comp = -1.0*colat_comp + X*Y/Kokkos::sqrt(delta)*lon_comp;
+		} else if (face == 4) {
+			xi_comp = 1.0/Kokkos::sqrt(X2+Y2)*(D*X*colat_comp-D*Y/Kokkos::sqrt(delta)*lon_comp);
+			eta_comp = 1.0/Kokkos::sqrt(X2+Y2)*(C*Y*colat_comp+C*X/Kokkos::sqrt(delta)*lon_comp);
+		} else if (face == 5) {
+			xi_comp = -1.0/Kokkos::sqrt(X2+Y2)*(D*X*colat_comp-D*Y/Kokkos::sqrt(delta)*lon_comp);
+			eta_comp = -1.0/Kokkos::sqrt(X2+Y2)*(C*Y*colat_comp+C*X/Kokkos::sqrt(delta)*lon_comp);
+		} else {
+			Kokkos::abort("Input face is not between 0 and 5, xi eta vec from xyz vec");
+		}
+	} else {
+		// close to poles
+		xi_comp = x_comp;
+		eta_comp = y_comp;
+	}
+}
+
 #endif

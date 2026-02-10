@@ -58,12 +58,12 @@ struct lap_panel_interaction {
                 z_s = xyz_s[2] + disp_z(source_panel, k);
                 project_to_sphere(x_s, y_s, z_s);
                 dp = xyz_t[0] * x_s + xyz_t[1] * y_s + xyz_t[2] * z_s;
-                dp2 = dp*dp;
-
-                h1 = Kokkos::exp(-1.0/eps) * Kokkos::pow(Kokkos::numbers::pi, -1.5)*(2.0*dp*(-1.0+3.0*eps+dp2));
-                h2 = (1.0+Kokkos::erf(dp/eps))*Kokkos::exp((dp2-1)/eps)/(Kokkos::sqrt(eps)*Kokkos::numbers::pi)*(2.0*eps*eps+2.0*dp2*(dp2-1.0)+eps*(7.0*dp2-1.0));
-                // Kokkos::atomic_add(&target_pots(target_panel, j), (h1+h2)/Kokkos::pow(eps,2.5)*(source_vals(target_panel,j) - source_vals(source_panel,k)));
-                Kokkos::atomic_add(&target_pots(target_panel, j), (h1+h2)/(Kokkos::pow(eps,2.5))*source_vals(source_panel,k));
+                if (dp > 1.0-30*eps) {
+                    dp2 = dp*dp;
+                    h1 = Kokkos::exp(-1.0/eps) * Kokkos::pow(Kokkos::numbers::pi, -1.5)*(2.0*dp*(-1.0+3.0*eps+dp2));
+                    h2 = (1.0+Kokkos::erf(dp/eps))*Kokkos::exp((dp2-1)/eps)/(Kokkos::sqrt(eps)*Kokkos::numbers::pi)*(2.0*eps*eps+2.0*dp2*(dp2-1.0)+eps*(7.0*dp2-1.0));
+                    Kokkos::atomic_add(&target_pots(target_panel, j), (h1+h2)/(Kokkos::pow(eps,2.5))*source_vals(source_panel,k));
+                }
             }
         }
     }

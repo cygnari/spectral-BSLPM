@@ -300,13 +300,111 @@ struct panel_laplacian {
 };
 
 KOKKOS_INLINE_FUNCTION
+
+void spatial_filter_vals(double* output_vals, double* func_vals, int degree) {
+	double coeff = 0.0005;
+	double xi, eta, xi_d_1, xi_d_2, eta_d_1, eta_d_2, f1, f2, f3, f4;
+	bool modify_xi, modify_eta;
+	int index, index2;
+	for (int i = 0; i < degree+1; i++) { // xi loop
+		xi = Kokkos::cos(Kokkos::numbers::pi * i / degree);
+		for (int j = 0; j < degree+1; j++) { // eta loop
+			eta = Kokkos::cos(Kokkos::numbers::pi * j / degree);
+			index = i * (degree+1) + j;
+			output_vals[index] = (1.0-coeff)*func_vals[index];
+			if (i == 0) {
+				xi_d_1 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i+1) / degree));
+				xi_d_2 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i+2) / degree));
+				f1 = func_vals[(i+1)*(degree+1)+j];
+				f2 = func_vals[(i+2)*(degree+1)+j];
+			} else if (i == degree) {
+				xi_d_1 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i-1) / degree));
+				xi_d_2 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i-2) / degree));
+				f1 = func_vals[(i-1)*(degree+1)+j];
+				f2 = func_vals[(i-2)*(degree+1)+j];
+			} else {
+				xi_d_1 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i-1) / degree));
+				xi_d_2 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i+1) / degree));
+				f1 = func_vals[(i-1)*(degree+1)+j];
+				f2 = func_vals[(i+1)*(degree+1)+j];
+			} 
+			if (j == 0) {
+				eta_d_1 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j+1) / degree));
+				eta_d_2 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j+2) / degree));
+				f3 = func_vals[index+1];
+				f4 = func_vals[index+2];
+			} else if (j == degree) {
+				eta_d_1 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j-1) / degree));
+				eta_d_2 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j-2) / degree));
+				f3 = func_vals[index-1];
+				f4 = func_vals[index-2];
+			} else {
+				eta_d_1 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j-1) / degree));
+				eta_d_2 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j+1) / degree));
+				f3 = func_vals[index-1];
+				f4 = func_vals[index+1];
+			}
+			output_vals[index] += 0.25*coeff/(xi_d_1+xi_d_2)*xi_d_1*f2;
+			output_vals[index] += 0.25*coeff/(xi_d_1+xi_d_2)*xi_d_2*f1;
+			output_vals[index] += 0.25*coeff/(eta_d_1+eta_d_2)*eta_d_1*f4;
+			output_vals[index] += 0.25*coeff/(eta_d_1+eta_d_2)*eta_d_2*f3;
+			// if (i == 0) { // xi edge, leave xi unchanged
+			// 	modify_xi = false;
+			// } else if (i == degree) { // xi edge, leave xi unchanged
+			// 	modify_xi = false;
+			// } else { // xi interior
+			// 	modify_xi = true;
+			// }
+			// if (j == 0) { // eta edge, leave eta unchanged
+			// 	modify_eta = false;
+			// } else if (j == degree) {
+			// 	modify_eta = false;
+			// } else {
+			// 	modify_eta = true;
+			// }
+			// if (modify_xi or modify_eta) {
+			// 	output_vals[index] = (1.0-coeff) * func_vals[index];
+			// 	if (modify_xi and modify_eta) {
+			// 		xi_d_1 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i-1) / degree));
+			// 		xi_d_2 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i+1) / degree));
+			// 		eta_d_1 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j-1) / degree));
+			// 		eta_d_2 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j+1) / degree));
+			// 		index2 = (i+1)*(degree+1)+j;
+			// 		output_vals[index] += 0.25*coeff/(xi_d_1+xi_d_2)*xi_d_1*func_vals[index2];
+			// 		index2 = (i-1)*(degree+1)+j;
+			// 		output_vals[index] += 0.25*coeff/(xi_d_1+xi_d_2)*xi_d_2*func_vals[index2];
+			// 		output_vals[index] += 0.25*coeff/(eta_d_1+eta_d_2)*eta_d_1*func_vals[index+1];
+			// 		output_vals[index] += 0.25*coeff/(eta_d_1+eta_d_2)*eta_d_2*func_vals[index-1];
+			// 	} else if (modify_xi) {
+			// 		xi_d_1 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i-1) / degree));
+			// 		xi_d_2 = Kokkos::abs(xi - Kokkos::cos(Kokkos::numbers::pi * (i+1) / degree));
+			// 		index2 = (i+1)*(degree+1)+j;
+			// 		output_vals[index] += 0.5*coeff/(xi_d_1+xi_d_2)*xi_d_1*func_vals[index2];
+			// 		index2 = (i-1)*(degree+1)+j;
+			// 		output_vals[index] += 0.5*coeff/(xi_d_1+xi_d_2)*xi_d_2*func_vals[index2];
+			// 	} else if (modify_eta) {
+			// 		eta_d_1 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j-1) / degree));
+			// 		eta_d_2 = Kokkos::abs(eta - Kokkos::cos(Kokkos::numbers::pi * (j+1) / degree));
+			// 		output_vals[index] += 0.5*coeff/(eta_d_1+eta_d_2)*eta_d_1*func_vals[index+1];
+			// 		output_vals[index] += 0.5*coeff/(eta_d_1+eta_d_2)*eta_d_2*func_vals[index-1];
+			// 	}
+			// } else {
+			// 	output_vals[index] = func_vals[index];
+			// }
+		}
+	}
+}
+
+KOKKOS_INLINE_FUNCTION
 void single_panel_lap(double* lap_vals, double* func_vals, double min_xi, double max_xi, double min_eta, double max_eta, int degree) {
-	double xi_derivs[121], eta_derivs[121], xixi_derivs[121], xieta_derivs[121], etaeta_derivs[121];
-	bli_deriv_xi(xi_derivs, func_vals, degree, min_xi, max_xi);
-	bli_deriv_eta(eta_derivs, func_vals, degree, min_eta, max_eta);
+	double xi_derivs[121], eta_derivs[121], xixi_derivs[121], xieta_derivs[121], etaeta_derivs[121], etaxi_derivs[121], filter_vals[121];
+	spatial_filter_vals(filter_vals, func_vals, degree);
+	bli_deriv_xi(xi_derivs, filter_vals, degree, min_xi, max_xi);
+	bli_deriv_eta(eta_derivs, filter_vals, degree, min_eta, max_eta);
 	bli_deriv_xi(xixi_derivs, xi_derivs, degree, min_xi, max_xi);
 	bli_deriv_eta(etaeta_derivs, eta_derivs, degree, min_eta, max_eta);
 	bli_deriv_eta(xieta_derivs, xi_derivs, degree, min_eta, max_eta);
+	bli_deriv_xi(etaxi_derivs, eta_derivs, degree, min_xi, max_xi);
 	double xi, eta;
 	int index;
 	double X, Y, C2, D2, delta;
@@ -314,6 +412,7 @@ void single_panel_lap(double* lap_vals, double* func_vals, double min_xi, double
 	double xi_scale = 0.5*(max_xi - min_xi);
 	double eta_offset = 0.5*(min_eta + max_eta);
 	double eta_scale = 0.5*(max_eta - min_eta);
+	double mix_der;
 	for (int i = 0; i < degree+1; i++) { // xi loop
 		xi = Kokkos::cos(Kokkos::numbers::pi * i / degree) * xi_scale + xi_offset;
 		for (int j = 0; j < degree+1; j++) { // eta loop
@@ -324,18 +423,54 @@ void single_panel_lap(double* lap_vals, double* func_vals, double min_xi, double
 			C2 = 1+X*X;
 			D2 = 1+Y*Y;
 			delta = 1+X*X+Y*Y;
-			lap_vals[index] = delta*(xixi_derivs[index]/C2 + etaeta_derivs[index]/D2 +2.0*X*Y/(C2*D2)*xieta_derivs[index]);
+			mix_der = 0.5*(xieta_derivs[index] + etaxi_derivs[index]);
+			lap_vals[index] = delta*(xixi_derivs[index]/C2 + etaeta_derivs[index]/D2 +2.0*X*Y/(C2*D2)*mix_der);
+		}
+	}
+}
+
+KOKKOS_INLINE_FUNCTION
+void single_panel_lap_no_filter(double* lap_vals, double* func_vals, double min_xi, double max_xi, double min_eta, double max_eta, int degree) {
+	double xi_derivs[121], eta_derivs[121], xixi_derivs[121], xieta_derivs[121], etaeta_derivs[121], etaxi_derivs[121], filter_vals[121];
+	bli_deriv_xi(xi_derivs, func_vals, degree, min_xi, max_xi);
+	bli_deriv_eta(eta_derivs, func_vals, degree, min_eta, max_eta);
+	bli_deriv_xi(xixi_derivs, xi_derivs, degree, min_xi, max_xi);
+	bli_deriv_eta(etaeta_derivs, eta_derivs, degree, min_eta, max_eta);
+	bli_deriv_eta(xieta_derivs, xi_derivs, degree, min_eta, max_eta);
+	bli_deriv_xi(etaxi_derivs, eta_derivs, degree, min_xi, max_xi);
+	double xi, eta;
+	int index;
+	double X, Y, C2, D2, delta;
+	double xi_offset = 0.5*(min_xi + max_xi);
+	double xi_scale = 0.5*(max_xi - min_xi);
+	double eta_offset = 0.5*(min_eta + max_eta);
+	double eta_scale = 0.5*(max_eta - min_eta);
+	double mix_der;
+	for (int i = 0; i < degree+1; i++) { // xi loop
+		xi = Kokkos::cos(Kokkos::numbers::pi * i / degree) * xi_scale + xi_offset;
+		for (int j = 0; j < degree+1; j++) { // eta loop
+			eta = Kokkos::cos(Kokkos::numbers::pi * j / degree) * eta_scale + eta_offset;
+			index = i * (degree+1) + j;
+			X = Kokkos::tan(xi);
+			Y = Kokkos::tan(eta);
+			C2 = 1+X*X;
+			D2 = 1+Y*Y;
+			delta = 1+X*X+Y*Y;
+			mix_der = 0.5*(xieta_derivs[index] + etaxi_derivs[index]);
+			lap_vals[index] = delta*(xixi_derivs[index]/C2 + etaeta_derivs[index]/D2 +2.0*X*Y/(C2*D2)*mix_der);
 		}
 	}
 }
 
 KOKKOS_INLINE_FUNCTION
 void single_panel_curl_rad_comp(double* curl_rad_vals, double* func_vals_xi, double* func_vals_eta, double min_xi, double max_xi, double min_eta, double max_eta, int degree) {
-	double xi_derivs_xi[121], eta_derivs_xi[121], xi_derivs_eta[121], eta_derivs_eta[121];
-	bli_deriv_xi(xi_derivs_xi, func_vals_xi, degree, min_xi, max_xi);
-	bli_deriv_xi(xi_derivs_eta, func_vals_eta, degree, min_xi, max_xi);
-	bli_deriv_eta(eta_derivs_xi, func_vals_xi, degree, min_eta, max_eta);
-	bli_deriv_eta(eta_derivs_eta, func_vals_eta, degree, min_eta, max_eta);
+	double xi_derivs_xi[121], eta_derivs_xi[121], xi_derivs_eta[121], eta_derivs_eta[121], filter_vals_xi[121], filter_vals_eta[121];
+	spatial_filter_vals(filter_vals_xi, func_vals_xi, degree);
+	spatial_filter_vals(filter_vals_eta, func_vals_eta, degree);
+	bli_deriv_xi(xi_derivs_xi, filter_vals_xi, degree, min_xi, max_xi);
+	bli_deriv_xi(xi_derivs_eta, filter_vals_eta, degree, min_xi, max_xi);
+	bli_deriv_eta(eta_derivs_xi, filter_vals_xi, degree, min_eta, max_eta);
+	bli_deriv_eta(eta_derivs_eta, filter_vals_eta, degree, min_eta, max_eta);
 	double xi, eta, X, Y, C, D, delta;
 	int index = 0;
 	double xi_offset = 0.5*(min_xi + max_xi);
@@ -351,7 +486,7 @@ void single_panel_curl_rad_comp(double* curl_rad_vals, double* func_vals_xi, dou
 			C = Kokkos::sqrt(1+X*X);
 			D = Kokkos::sqrt(1+Y*Y);
 			delta = 1+X*X+Y*Y;
-			curl_rad_vals[index] = Kokkos::sqrt(delta)/6371000.0 * (X*Y/(C*D)*(eta_derivs_eta[index]/D-xi_derivs_xi[index]/C)-eta_derivs_xi[index]/D+xi_derivs_eta[index]/C);
+			curl_rad_vals[index] = Kokkos::sqrt(delta)* (X*Y/(C*D)*(eta_derivs_eta[index]/D-xi_derivs_xi[index]/C)-eta_derivs_xi[index]/D+xi_derivs_eta[index]/C);
 			index += 1;
 		}
 	}
@@ -359,13 +494,15 @@ void single_panel_curl_rad_comp(double* curl_rad_vals, double* func_vals_xi, dou
 
 KOKKOS_INLINE_FUNCTION
 void single_panel_div(double* div_vals, double* func_vals_xi, double* func_vals_eta, double min_xi, double max_xi, double min_eta, double max_eta, int degree) {
-	double xi_derivs[121], eta_derivs[121], xi_scaled_vals[121], eta_scaled_vals[121];
+	double xi_derivs[121], eta_derivs[121], xi_scaled_vals[121], eta_scaled_vals[121], filter_vals_xi[121], filter_vals_eta[121];
 	double X, Y, C, D, delta, xi, eta;
 	int index = 0;
 	double xi_offset = 0.5*(min_xi + max_xi);
 	double xi_scale = 0.5*(max_xi - min_xi);
 	double eta_offset = 0.5*(min_eta + max_eta);
 	double eta_scale = 0.5*(max_eta - min_eta);
+	spatial_filter_vals(filter_vals_xi, func_vals_xi, degree);
+	spatial_filter_vals(filter_vals_eta, func_vals_eta, degree);
 	for (int i = 0; i < degree+1; i++) {
 		xi = Kokkos::cos(Kokkos::numbers::pi * i / degree) * xi_scale + xi_offset;
 		for (int j = 0; j < degree+1; j++) {
@@ -373,8 +510,8 @@ void single_panel_div(double* div_vals, double* func_vals_xi, double* func_vals_
 			X = Kokkos::tan(xi);
 			Y = Kokkos::tan(eta);
 			delta = 1+X*X+Y*Y;
-			xi_scaled_vals[index] = func_vals_xi[index] / Kokkos::sqrt(delta);
-			eta_scaled_vals[index] = func_vals_eta[index] / Kokkos::sqrt(delta);
+			xi_scaled_vals[index] = filter_vals_xi[index] / Kokkos::sqrt(delta);
+			eta_scaled_vals[index] = filter_vals_eta[index] / Kokkos::sqrt(delta);
 			index += 1;
 		}
 	}
@@ -389,7 +526,7 @@ void single_panel_div(double* div_vals, double* func_vals_xi, double* func_vals_
 			C = Kokkos::sqrt(1+X*X);
 			D = Kokkos::sqrt(1+Y*Y);
 			delta = 1+X*X+Y*Y;
-			div_vals[index]=Kokkos::pow(delta, 1.5)/(6371000.0*C*D) * (xi_derivs[index]/C+eta_derivs[index]/D);
+			div_vals[index]=Kokkos::pow(delta, 1.5)/(C*D) * (xi_derivs[index]/C+eta_derivs[index]/D);
 			index += 1;
 		}
 	}

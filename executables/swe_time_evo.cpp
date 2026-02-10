@@ -21,6 +21,7 @@
 #include "swe_time_step.hpp"
 #include "swe_time_step_2.hpp"
 #include "topography.hpp"
+#include "deriv_funcs_impl.hpp"
 
 int main(int argc, char* argv[]) {
 	MPI_Init(&argc, &argv);
@@ -54,6 +55,27 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> interp_vals ("interp vals", pow(run_config.interp_degree+1, 2), 4);
 
 		interp_init(run_config, interp_vals);
+
+		// int pc = (run_config.interp_degree+1)*(run_config.interp_degree+1);
+		// double vals[pc];
+		// double max_xi = 1.0;
+		// double min_xi = 0.0;
+		// double max_eta = 1.0;
+		// double min_eta = -1.0;
+		// double xi_offset = 0.5*(min_xi + max_xi);
+		// double xi_scale = 0.5*(max_xi - min_xi);
+		// double eta_offset = 0.5*(min_eta + max_eta);
+		// double eta_scale = 0.5*(max_eta - min_eta);
+		// for (int i = 0; i < pc; i++) {
+		// 	vals[i] = pow(interp_vals(i,0) * xi_scale + xi_offset,2);
+		// 	std::cout << vals[i] << std::endl;
+		// }
+		// double derivs[pc];
+		// bli_deriv_xi(derivs, vals, run_config.interp_degree, min_xi, max_xi);
+		// for (int i = 0; i < pc; i++) {
+		// 	std::cout << derivs[i] << std::endl;
+		// }
+
 
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos ("xcos", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos ("ycos", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
@@ -92,7 +114,7 @@ int main(int argc, char* argv[]) {
 			std::cout << "area discrepancy from 4pi: " << total_area - 4 * M_PI << std::endl;
 		}
 
-		swe_initialize(run_config, xcos, ycos, zcos, vors, divs, height, area);
+		swe_initialize(run_config, xcos, ycos, zcos, vors, divs, height, area, topo);
 		tracer_initialize(run_config, xcos, ycos, zcos, vors, passive_tracers);
 
 		// initialize output file
@@ -231,7 +253,7 @@ int main(int argc, char* argv[]) {
 				nc_put_att_int(ncid, NC_GLOBAL, "panel count", NC_INT, 1, &run_config.panel_count);
 				nc_put_att_int(ncid, NC_GLOBAL, "active panel count", NC_INT, 1, &run_config.active_panel_count);
 				nc_put_att_int(ncid, NC_GLOBAL, "time step size [s]", NC_INT, 1, &run_config.delta_t);
-				nc_put_att_int(ncid, NC_GLOBAL, "end time", NC_INT, 1, &run_config.end_time);
+				nc_put_att_int(ncid, NC_GLOBAL, "end time [s]", NC_INT, 1, &run_config.end_time);
 				nc_put_att_double(ncid, NC_GLOBAL, "fmm theta", NC_DOUBLE, 1, &run_config.fmm_theta);
 				if (run_config.interp_output) {
 					for (int i = 0; i < lat_count; i++) {
@@ -354,7 +376,7 @@ int main(int argc, char* argv[]) {
 
 		for (int t = 0; t < run_config.time_steps; t++) {
 			std::cout << "time step: " << t << std::endl;
-			swe_back_rk4_step(run_config, d_xcos, d_ycos, d_zcos, d_area, d_vors, d_divs, d_height, d_interp_vals, d_cubed_sphere_panels, d_interaction_list, d_vel_x, d_vel_y, d_vel_z, d_passive_tracers, d_height_lap, t * run_config.delta_t);
+			swe_back_rk4_step_2(run_config, d_xcos, d_ycos, d_zcos, d_area, d_vors, d_divs, d_height, d_interp_vals, d_cubed_sphere_panels, d_interaction_list, d_vel_x, d_vel_y, d_vel_z, d_passive_tracers, d_height_lap, t * run_config.delta_t);
 			unify_boundary_vals(run_config, d_one_d_no_of_points, d_two_d_to_1d, d_vors);
 			unify_boundary_vals(run_config, d_one_d_no_of_points, d_two_d_to_1d, d_divs);
 			unify_boundary_vals(run_config, d_one_d_no_of_points, d_two_d_to_1d, d_height);
