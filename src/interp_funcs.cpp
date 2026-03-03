@@ -172,7 +172,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	}
 }
 
-int point_locate_panel(Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, double x, double y, double z) {
+int point_locate_panel_2(Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, double x, double y, double z) {
 	// finds the leaf panel that contains the point (x,y,z)
 	int curr_index;
 	double xi, eta, xieta[2], mid_eta, mid_xi;
@@ -232,12 +232,12 @@ int point_locate_panel(Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, doub
 // 	return curr_index;
 // }
 
-template struct latlon_interp<Kokkos::LayoutRight>;
-template struct latlon_interp<Kokkos::LayoutStride>;
+template struct latlon_interp_host<Kokkos::LayoutRight>;
+template struct latlon_interp_host<Kokkos::LayoutStride>;
 
-template void interp_to_latlon<Kokkos::LayoutRight>(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& data, 
+template void interp_to_latlon_host<Kokkos::LayoutRight>(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& data, 
 								Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& interped_data, 
 								Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons);
-template void interp_to_latlon<Kokkos::LayoutStride>(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutStride, Kokkos::HostSpace>& data, 
+template void interp_to_latlon_host<Kokkos::LayoutStride>(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutStride, Kokkos::HostSpace>& data, 
 								Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& interped_data, 
 								Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons);

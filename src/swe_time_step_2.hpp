@@ -10,6 +10,7 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 							Kokkos::LayoutRight>& height, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals, 
 							Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels, Kokkos::View<interact_pair*>& interaction_list, 
 							Kokkos::View<double**, Kokkos::LayoutRight>& vel_x, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y, 
-							Kokkos::View<double**, Kokkos::LayoutRight>& vel_z, Kokkos::View<double***, Kokkos::LayoutRight>& passive_tracers, Kokkos::View<double**, Kokkos::LayoutRight>& height_lapl, double time);
+							Kokkos::View<double**, Kokkos::LayoutRight>& vel_z, Kokkos::View<double***, Kokkos::LayoutRight>& passive_tracers, Kokkos::View<double**, Kokkos::LayoutRight>& base_vor_tend, 
+							Kokkos::View<double**, Kokkos::LayoutRight>& base_div_tend, Kokkos::View<double**, Kokkos::LayoutRight>& base_h_tend, double time);
 
 #endif

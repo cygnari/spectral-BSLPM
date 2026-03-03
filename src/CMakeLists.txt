@@ -59,5 +59,6 @@ install(FILES
     run_config.hpp
     swe_time_step.hpp
     swe_time_step_2.hpp
+    swe_time_step_2_impl.hpp
     topography.hpp
     DESTINATION ${PROJECT_SOURCE_DIR}/include)

@@ -211,10 +211,10 @@ int main(int argc, char* argv[]) {
 				}
 				nc_put_var_double(ncid, lat_varid, &lat_vals(0));
 				nc_put_var_double(ncid, lon_varid, &lon_vals(0));
-				interp_to_latlon(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vor_id, start_nc, count_nc, &vor_out(0,0));
 				for (int i = 0; i < run_config.tracer_count; i++) {
-					interp_to_latlon(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
+					interp_to_latlon_host(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
 					nc_put_vara_double(ncid, tracer_varids[i], start_nc, count_nc, &tracer_out(0,0));
 				}
 			} else {
@@ -315,15 +315,15 @@ int main(int argc, char* argv[]) {
 			Kokkos::deep_copy(passive_tracers, d_passive_tracers);
 			
 			if (run_config.interp_output) {
-				interp_to_latlon(run_config, vel_u, cubed_sphere_panels, uvel_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vel_u, cubed_sphere_panels, uvel_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, uvel_id, start_nc, count_nc, &uvel_out(0,0));
-				interp_to_latlon(run_config, vel_v, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vel_v, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vvel_id, start_nc, count_nc, &vvel_out(0,0));
-				interp_to_latlon(run_config, vel_x, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vel_x, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vel_x_id, start_nc, count_nc, &vvel_out(0,0));
-				interp_to_latlon(run_config, vel_y, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vel_y, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vel_y_id, start_nc, count_nc, &vvel_out(0,0));
-				interp_to_latlon(run_config, vel_z, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vel_z, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vel_z_id, start_nc, count_nc, &vvel_out(0,0));
 				
 			} else {
@@ -341,10 +341,10 @@ int main(int argc, char* argv[]) {
 
 			start_nc[0] += 1;
 			if (run_config.interp_output) {
-				interp_to_latlon(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
+				interp_to_latlon_host(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
 				nc_put_vara_double(ncid, vor_id, start_nc, count_nc, &vor_out(0,0));
 				for (int i = 0; i < run_config.tracer_count; i++) {
-					interp_to_latlon(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
+					interp_to_latlon_host(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
 					nc_put_vara_double(ncid, tracer_varids[i], start_nc, count_nc, &tracer_out(0,0));
 				}
 			} else {

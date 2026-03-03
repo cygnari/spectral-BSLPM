@@ -24,9 +24,11 @@ struct cone_mountain {
 		double radius = Kokkos::numbers::pi / 9.0;
 		// double radius = Kokkos::numbers::pi;
 		double height0 = 2000.0 / 6371000.0; // 2000 meters, normalized by earth radius
-		double lambdac = 1.5*Kokkos::numbers::pi;
+		double lambdac = 0.5*Kokkos::numbers::pi;
 		double thetac = Kokkos::numbers::pi / 6.0;
+		// double thetac = 0;
 		double lat, lon, r, x, y, z;
+		double r2;
 		for (int j = 0; j < jmax; j++) {
 			x = xcos(i,j) + disp_x(i,j);
 			y = ycos(i,j) + disp_y(i,j);
@@ -35,8 +37,10 @@ struct cone_mountain {
 			xyz_to_latlon(lat, lon, x, y, z);
 			lon += 2*Kokkos::numbers::pi;
 			lon = Kokkos::fmod(lon, 2*Kokkos::numbers::pi);
-			r = Kokkos::sqrt(Kokkos::fmin((lon-lambdac)*(lon-lambdac) + (lat-thetac)*(lat-thetac), radius*radius));
-			eff_height(i,j) = height(i,j) + height0 * (1.0 - r / radius);
+			// r = Kokkos::sqrt(Kokkos::fmin((lon-lambdac)*(lon-lambdac) + (lat-thetac)*(lat-thetac), radius*radius));
+			r2 = ((lon-lambdac)*(lon-lambdac)) + (lat-thetac)*(lat-thetac);
+			// eff_height(i,j) = height(i,j) + height0 * (1.0 - r / radius);
+			eff_height(i,j) = height(i,j) + height0 * Kokkos::exp(-16.0*r2);
 		}
 	}
 };
@@ -75,9 +79,11 @@ struct cone_mountain_2 {
 		// double radius = Kokkos::numbers::pi;
 		double height0 = 2000.0 / 6371000.0; // 2000 meters, normalized by earth radius
 		// double height0 = 1.0;
-		double lambdac = 1.5*Kokkos::numbers::pi;
+		double lambdac = 0.5*Kokkos::numbers::pi;
 		double thetac = Kokkos::numbers::pi / 6.0;
+		// double thetac = 0;
 		double lat, lon, r, x, y, z;
+		double r2;
 		for (int j = 0; j < jmax; j++) {
 			x = xcos(i,j) + disp_x(i,j);
 			y = ycos(i,j) + disp_y(i,j);
@@ -86,8 +92,10 @@ struct cone_mountain_2 {
 			xyz_to_latlon(lat, lon, x, y, z);
 			lon += 2*Kokkos::numbers::pi;
 			lon = Kokkos::fmod(lon, 2*Kokkos::numbers::pi);
-			r = std::sqrt(std::fmin((lon-lambdac)*(lon-lambdac) + (lat-thetac)*(lat-thetac), radius*radius));
-			eff_height(i,j) = height(i,j) + height0 * (1.0 - r / radius);
+			// r = std::sqrt(std::fmin((lon-lambdac)*(lon-lambdac) + (lat-thetac)*(lat-thetac), radius*radius));
+			// eff_height(i,j) = height(i,j) + height0 * (1.0 - r / radius);
+			r2 = ((lon-lambdac)*(lon-lambdac)) + (lat-thetac)*(lat-thetac);
+			eff_height(i,j) = height(i,j) + height0 * Kokkos::exp(-16.0*r2);
 		}
 	}
 };

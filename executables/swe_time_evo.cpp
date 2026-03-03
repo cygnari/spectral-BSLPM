@@ -20,8 +20,10 @@
 #include "mpi_utils.hpp"
 #include "swe_time_step.hpp"
 #include "swe_time_step_2.hpp"
+#include "swe_time_step_2_impl.hpp"
 #include "topography.hpp"
 #include "deriv_funcs_impl.hpp"
+#include "fmm_interactions/swe_vel.hpp"
 
 int main(int argc, char* argv[]) {
 	MPI_Init(&argc, &argv);
@@ -55,26 +57,6 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> interp_vals ("interp vals", pow(run_config.interp_degree+1, 2), 4);
 
 		interp_init(run_config, interp_vals);
-
-		// int pc = (run_config.interp_degree+1)*(run_config.interp_degree+1);
-		// double vals[pc];
-		// double max_xi = 1.0;
-		// double min_xi = 0.0;
-		// double max_eta = 1.0;
-		// double min_eta = -1.0;
-		// double xi_offset = 0.5*(min_xi + max_xi);
-		// double xi_scale = 0.5*(max_xi - min_xi);
-		// double eta_offset = 0.5*(min_eta + max_eta);
-		// double eta_scale = 0.5*(max_eta - min_eta);
-		// for (int i = 0; i < pc; i++) {
-		// 	vals[i] = pow(interp_vals(i,0) * xi_scale + xi_offset,2);
-		// 	std::cout << vals[i] << std::endl;
-		// }
-		// double derivs[pc];
-		// bli_deriv_xi(derivs, vals, run_config.interp_degree, min_xi, max_xi);
-		// for (int i = 0; i < pc; i++) {
-		// 	std::cout << derivs[i] << std::endl;
-		// }
 
 
 		Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos ("xcos", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
@@ -264,17 +246,17 @@ int main(int argc, char* argv[]) {
 					}
 					nc_put_var_double(ncid, lat_varid, &lat_vals(0));
 					nc_put_var_double(ncid, lon_varid, &lon_vals(0));
-					interp_to_latlon(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
+					interp_to_latlon_host(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
 					nc_put_vara_double(ncid, vor_id, start_nc, count_nc, &vor_out(0,0));
-					interp_to_latlon(run_config, divs, cubed_sphere_panels, div_out, lat_vals, lon_vals);
+					interp_to_latlon_host(run_config, divs, cubed_sphere_panels, div_out, lat_vals, lon_vals);
 					nc_put_vara_double(ncid, div_id, start_nc, count_nc, &div_out(0,0));
-					interp_to_latlon(run_config, height, cubed_sphere_panels, height_out, lat_vals, lon_vals);
+					interp_to_latlon_host(run_config, height, cubed_sphere_panels, height_out, lat_vals, lon_vals);
 					nc_put_vara_double(ncid, height_id, start_nc, count_nc, &height_out(0,0));
 					for (int i = 0; i < run_config.tracer_count; i++) {
-						interp_to_latlon(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
+						interp_to_latlon_host(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
 						nc_put_vara_double(ncid, tracer_varids[i], start_nc, count_nc, &tracer_out(0,0));
 					}
-					interp_to_latlon(run_config, topo, cubed_sphere_panels, topo_out, lat_vals, lon_vals);
+					interp_to_latlon_host(run_config, topo, cubed_sphere_panels, topo_out, lat_vals, lon_vals);
 					nc_put_vara_double(ncid, topo_id, start_nc, count_nc_no_t, &topo_out(0,0));
 				} else {
 					vec_2d_to_1d<Kokkos::LayoutRight>(run_config, area_1d, area, two_d_to_1d, true);			
@@ -337,7 +319,6 @@ int main(int argc, char* argv[]) {
 		Kokkos::View<double**, Kokkos::LayoutRight> d_vors("device vors", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_divs("device divs", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_height("device heights", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
-		Kokkos::View<double**, Kokkos::LayoutRight> d_height_lap("device height laps", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_vel_x("device vel x", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_vel_y("device vel y", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
 		Kokkos::View<double**, Kokkos::LayoutRight> d_vel_z("device vel z", run_config.active_panel_count, pow(run_config.interp_degree+1, 2));
@@ -372,24 +353,76 @@ int main(int argc, char* argv[]) {
 
 		Kokkos::View<double**, Kokkos::LayoutRight> d_proxy_source_weights("device proxy source weights", run_config.panel_count, pow(run_config.interp_degree+1, 2));
 
-		int offset = run_config.panel_count - run_config.active_panel_count;
+		// // first compute base numerical tendencies
+		// int dim2size = (run_config.interp_degree+1) * (run_config.interp_degree+1);
+		// int offset = cubed_sphere_panels.extent_int(0) - run_config.active_panel_count;
+		// Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_vors ("proxy source vors", run_config.panel_count, dim2size);
+		// Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_divs ("proxy source divs", run_config.panel_count, dim2size);
+		// Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_heights ("proxy source heights", run_config.panel_count, dim2size);
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_source_vors.extent_int(0), proxy_source_vors.extent_int(1)}), zero_out(proxy_source_vors));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_source_divs.extent_int(0), proxy_source_divs.extent_int(1)}), zero_out(proxy_source_divs));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_source_heights.extent_int(0), proxy_source_heights.extent_int(1)}), zero_out(proxy_source_heights));
+		// Kokkos::View<double**, Kokkos::LayoutRight> disp_x ("x displacements", run_config.panel_count, dim2size);
+		// Kokkos::View<double**, Kokkos::LayoutRight> disp_y ("y displacements", run_config.panel_count, dim2size);
+		// Kokkos::View<double**, Kokkos::LayoutRight> disp_z ("z displacements", run_config.panel_count, dim2size);
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {disp_x.extent_int(0), disp_x.extent_int(1)}), zero_out(disp_x));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {disp_y.extent_int(0), disp_y.extent_int(1)}), zero_out(disp_y));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {disp_z.extent_int(0), disp_z.extent_int(1)}), zero_out(disp_z));
+
+		// Kokkos::View<double**, Kokkos::LayoutRight> effective_height ("height with topography", run_config.active_panel_count, dim2size);
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {effective_height.extent_int(0), effective_height.extent_int(1)}), zero_out(effective_height));
+		// apply_topography(run_config, d_xcos, d_ycos, d_zcos, disp_x, disp_y, disp_z, d_height, effective_height);
+
+		// upward_pass(run_config, d_interp_vals, d_cubed_sphere_panels, d_area, d_vors, proxy_source_vors);
+		// upward_pass(run_config, d_interp_vals, d_cubed_sphere_panels, d_area, d_divs, proxy_source_divs);
+
+		// Kokkos::View<double**, Kokkos::LayoutRight> proxy_target_1("proxy target vels", run_config.panel_count, dim2size);
+		// Kokkos::View<double**, Kokkos::LayoutRight> proxy_target_2("proxy target vels", run_config.panel_count, dim2size);
+		// Kokkos::View<double**, Kokkos::LayoutRight> proxy_target_3("proxy target vels", run_config.panel_count, dim2size);
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_1.extent_int(0), proxy_target_1.extent_int(1)}), zero_out(proxy_target_1));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_2.extent_int(0), proxy_target_2.extent_int(1)}), zero_out(proxy_target_2));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_3.extent_int(0), proxy_target_3.extent_int(1)}), zero_out(proxy_target_3));
+		// swe_vel_interactions_2(run_config, disp_x, disp_y, disp_z, proxy_target_1, proxy_target_2, proxy_target_3, proxy_source_vors, proxy_source_divs, d_interaction_list, d_cubed_sphere_panels, d_interp_vals);
+
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {vel_x.extent_int(0), vel_x.extent_int(1)}), zero_out(d_vel_x));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {vel_y.extent_int(0), vel_y.extent_int(1)}), zero_out(d_vel_y));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {vel_z.extent_int(0), vel_z.extent_int(1)}), zero_out(d_vel_z));
+		// downward_pass_3(run_config, d_interp_vals, d_cubed_sphere_panels, proxy_target_1, proxy_target_2, proxy_target_3, d_vel_x, d_vel_y, d_vel_z);
+
+		// MPI_Allreduce(MPI_IN_PLACE, &vel_x(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		// MPI_Allreduce(MPI_IN_PLACE, &vel_y(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		// MPI_Allreduce(MPI_IN_PLACE, &vel_z(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+		Kokkos::View<double**, Kokkos::LayoutRight> base_vor_tend ("vorticity base tend", run_config.active_panel_count, dim2size);
+		Kokkos::View<double**, Kokkos::LayoutRight> base_div_tend ("divergence base tend", run_config.active_panel_count, dim2size);
+		Kokkos::View<double**, Kokkos::LayoutRight> base_h_tend ("height base tend", run_config.active_panel_count, dim2size);
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {base_vor_tend.extent_int(0), base_vor_tend.extent_int(1)}), zero_out(base_vor_tend));
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {base_div_tend.extent_int(0), base_div_tend.extent_int(1)}), zero_out(base_div_tend));
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {base_h_tend.extent_int(0), base_h_tend.extent_int(1)}), zero_out(base_h_tend));
+		// Kokkos::parallel_for(run_config.active_panel_count, swe_tendency_computation_2(d_xcos, d_ycos, d_zcos, d_vel_x, d_vel_y, d_vel_z, d_vors, base_vor_tend, d_divs, base_div_tend, effective_height, effective_height, base_h_tend, d_cubed_sphere_panels, run_config.omega,run_config.interp_degree, offset));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {vel_x.extent_int(0), vel_x.extent_int(1)}), zero_out(d_vel_x));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {vel_y.extent_int(0), vel_y.extent_int(1)}), zero_out(d_vel_y));
+		// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {vel_z.extent_int(0), vel_z.extent_int(1)}), zero_out(d_vel_z));
 
 		for (int t = 0; t < run_config.time_steps; t++) {
 			std::cout << "time step: " << t << std::endl;
-			swe_back_rk4_step_2(run_config, d_xcos, d_ycos, d_zcos, d_area, d_vors, d_divs, d_height, d_interp_vals, d_cubed_sphere_panels, d_interaction_list, d_vel_x, d_vel_y, d_vel_z, d_passive_tracers, d_height_lap, t * run_config.delta_t);
+			// swe_back_rk4_step(run_config, d_xcos, d_ycos, d_zcos, d_area, d_vors, d_divs, d_height, d_interp_vals, d_cubed_sphere_panels, d_interaction_list, d_vel_x, d_vel_y, d_vel_z, d_passive_tracers, d_height_lap, t * run_config.delta_t);
+			swe_back_rk4_step_2(run_config, d_xcos, d_ycos, d_zcos, d_area, d_vors, d_divs, d_height, d_interp_vals, d_cubed_sphere_panels, d_interaction_list, d_vel_x, d_vel_y, d_vel_z, d_passive_tracers, base_vor_tend, base_div_tend, base_h_tend, t * run_config.delta_t);
 			unify_boundary_vals(run_config, d_one_d_no_of_points, d_two_d_to_1d, d_vors);
 			unify_boundary_vals(run_config, d_one_d_no_of_points, d_two_d_to_1d, d_divs);
 			unify_boundary_vals(run_config, d_one_d_no_of_points, d_two_d_to_1d, d_height);
 
 			if (run_config.write_output) {
 				if (t % run_config.output_freq == run_config.output_freq-1) {
+					Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {d_vel_u.extent_int(0), d_vel_u.extent_int(1)}), zero_out(d_vel_u));
+					Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {d_vel_v.extent_int(0), d_vel_v.extent_int(1)}), zero_out(d_vel_v));
 					Kokkos::parallel_for(run_config.active_panel_count, xyz_vel_to_uv_vel(d_xcos, d_ycos, d_zcos, d_vel_x, d_vel_y, d_vel_z, d_vel_u, d_vel_v));
+					// vel_u = 0;
 					Kokkos::deep_copy(vel_u, d_vel_u);
 					Kokkos::deep_copy(vel_v, d_vel_v);	
 					Kokkos::deep_copy(vel_x, d_vel_x);
 					Kokkos::deep_copy(vel_y, d_vel_y);
 					Kokkos::deep_copy(vel_z, d_vel_z);	
-					// Kokkos::deep_copy(height_lap, d_height_lap);	
 					Kokkos::deep_copy(vors, d_vors);
 					Kokkos::deep_copy(divs, d_divs);
 					Kokkos::deep_copy(height, d_height);
@@ -398,15 +431,15 @@ int main(int argc, char* argv[]) {
 					if (run_config.output_vel) {
 						start_nc[0] = t;
 						if (run_config.interp_output) {
-							interp_to_latlon(run_config, vel_u, cubed_sphere_panels, uvel_out, lat_vals, lon_vals);
+							interp_to_latlon_host(run_config, vel_u, cubed_sphere_panels, uvel_out, lat_vals, lon_vals);
 							nc_put_vara_double(ncid, uvel_id, start_nc, count_nc, &uvel_out(0,0));
-							interp_to_latlon(run_config, vel_v, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+							interp_to_latlon_host(run_config, vel_v, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 							nc_put_vara_double(ncid, vvel_id, start_nc, count_nc, &vvel_out(0,0));
-							interp_to_latlon(run_config, vel_x, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+							interp_to_latlon_host(run_config, vel_x, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 							nc_put_vara_double(ncid, vel_x_id, start_nc, count_nc, &vvel_out(0,0));
-							interp_to_latlon(run_config, vel_y, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+							interp_to_latlon_host(run_config, vel_y, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 							nc_put_vara_double(ncid, vel_y_id, start_nc, count_nc, &vvel_out(0,0));
-							interp_to_latlon(run_config, vel_z, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
+							interp_to_latlon_host(run_config, vel_z, cubed_sphere_panels, vvel_out, lat_vals, lon_vals);
 							nc_put_vara_double(ncid, vel_z_id, start_nc, count_nc, &vvel_out(0,0));
 							
 						} else {
@@ -425,14 +458,14 @@ int main(int argc, char* argv[]) {
 					
 					start_nc[0] = (t+1)/run_config.output_freq;
 					if (run_config.interp_output) {
-						interp_to_latlon(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
+						interp_to_latlon_host(run_config, vors, cubed_sphere_panels, vor_out, lat_vals, lon_vals);
 						nc_put_vara_double(ncid, vor_id, start_nc, count_nc, &vor_out(0,0));
-						interp_to_latlon(run_config, divs, cubed_sphere_panels, div_out, lat_vals, lon_vals);
+						interp_to_latlon_host(run_config, divs, cubed_sphere_panels, div_out, lat_vals, lon_vals);
 						nc_put_vara_double(ncid, div_id, start_nc, count_nc, &div_out(0,0));
-						interp_to_latlon(run_config, height, cubed_sphere_panels, height_out, lat_vals, lon_vals);
+						interp_to_latlon_host(run_config, height, cubed_sphere_panels, height_out, lat_vals, lon_vals);
 						nc_put_vara_double(ncid, height_id, start_nc, count_nc, &height_out(0,0));
 						for (int i = 0; i < run_config.tracer_count; i++) {
-							interp_to_latlon(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
+							interp_to_latlon_host(run_config, individual_tracers[run_config.tracers[i]], cubed_sphere_panels, tracer_out, lat_vals, lon_vals);
 							nc_put_vara_double(ncid, tracer_varids[i], start_nc, count_nc, &tracer_out(0,0));
 						}
 					} else {

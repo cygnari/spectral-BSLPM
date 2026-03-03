@@ -117,11 +117,10 @@ int point_locate_panel(Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, doub
 	xieta_from_xyz(x, y, z, curr_index, xieta);
 	xi = xieta[0];
 	eta = xieta[1];
-	std::cout << xi << " " << eta << std::endl;
 	while (not cubed_sphere_panels(curr_index).is_leaf) {
 		// iterate through until leaf, compare xi eta
-		mid_xi = 0.5*(cubed_sphere_panels(curr_index).max_xi + cubed_sphere_panels(curr_index).min_xi);
-		mid_eta = 0.5*(cubed_sphere_panels(curr_index).max_eta + cubed_sphere_panels(curr_index).min_eta);
+		mid_xi = 0.5*Kokkos::numbers::pi/4.0*(cubed_sphere_panels(curr_index).max_xi + cubed_sphere_panels(curr_index).min_xi);
+		mid_eta = 0.5*Kokkos::numbers::pi/4.0*(cubed_sphere_panels(curr_index).max_eta + cubed_sphere_panels(curr_index).min_eta);
 		if ((xi >= mid_xi) and (eta >= mid_eta)) {
 			curr_index = cubed_sphere_panels(curr_index).child1;
 		} else if ((xi <= mid_xi) and (eta >= mid_eta)) {

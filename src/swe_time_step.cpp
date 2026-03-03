@@ -144,18 +144,18 @@ struct swe_tendency_computation {
 			height_tend(i,j) = -height(i,j) * div(i,j);
 			// div_tend(i,j) = 0;
 
-			if ((i == 0) and (j == 0)) {
-				std::cout << div_tend(i,j) << std::endl;
-				// std::cout << vor_tend(i,j) << std::endl;
-				// std::cout << height_tend(i,j) << std::endl;
-				std::cout << lat << " " << lon << std::endl;
-				std::cout << "Grad f term: " << -2.0 * omega * vel_u << std::endl;
-				std::cout << "u dot u: " << -dp << std::endl;
-				std::cout << "height lap: " << -height_lap(i,j) << std::endl;
-				std::cout << "double dot prod: " << -grad_comp << std::endl;
-				// std::cout << "double dot prod: " << 2.0 * (M_PI/(6.0*86400.0)*M_PI/(6.0*86400.0)) * Kokkos::sin(lat) * Kokkos::sin(lat) << std::endl;
-				std::cout << "f*zeta: " << 2.0*omega*zcos(i,j)*vor(i,j) << std::endl;
-			}
+			// if ((i == 0) and (j == 0)) {
+			// 	std::cout << div_tend(i,j) << std::endl;
+			// 	// std::cout << vor_tend(i,j) << std::endl;
+			// 	// std::cout << height_tend(i,j) << std::endl;
+			// 	std::cout << lat << " " << lon << std::endl;
+			// 	std::cout << "Grad f term: " << -2.0 * omega * vel_u << std::endl;
+			// 	std::cout << "u dot u: " << -dp << std::endl;
+			// 	std::cout << "height lap: " << -height_lap(i,j) << std::endl;
+			// 	std::cout << "double dot prod: " << -grad_comp << std::endl;
+			// 	// std::cout << "double dot prod: " << 2.0 * (M_PI/(6.0*86400.0)*M_PI/(6.0*86400.0)) * Kokkos::sin(lat) * Kokkos::sin(lat) << std::endl;
+			// 	std::cout << "f*zeta: " << 2.0*omega*zcos(i,j)*vor(i,j) << std::endl;
+			// }
 		}
 	}
 };

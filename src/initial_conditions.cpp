@@ -283,6 +283,40 @@ struct tracer_z {
 	}
 };
 
+struct tracer_x {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double***, Kokkos::LayoutRight, Kokkos::HostSpace> passive_tracers;
+	int index;
+
+	tracer_x(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_,
+				Kokkos::View<double***, Kokkos::LayoutRight, Kokkos::HostSpace>& passive_tracers_,
+				int index_) : xcos(xcos_), passive_tracers(passive_tracers_), index(index_) {}
+
+	void operator()(const int i) const {
+		int jmax = passive_tracers.extent_int(1);
+		for (int j = 0; j < jmax; j++) {
+			passive_tracers(i,j,index) = xcos(i,j);
+		}
+	}
+};
+
+struct tracer_y {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double***, Kokkos::LayoutRight, Kokkos::HostSpace> passive_tracers;
+	int index;
+
+	tracer_y(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_,
+				Kokkos::View<double***, Kokkos::LayoutRight, Kokkos::HostSpace>& passive_tracers_,
+				int index_) : ycos(ycos_), passive_tracers(passive_tracers_), index(index_) {}
+
+	void operator()(const int i) const {
+		int jmax = passive_tracers.extent_int(1);
+		for (int j = 0; j < jmax; j++) {
+			passive_tracers(i,j,index) = ycos(i,j);
+		}
+	}
+};
+
 struct integrate_vorticity {
 	using value_type = double;
 	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vorticity;
@@ -362,6 +396,12 @@ void tracer_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokko
 		} else if (run_config.tracers[i] == "z") {
 			Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), 
 							tracer_z(zcos, passive_tracers, i));
+		} else if (run_config.tracers[i] == "x") {
+			Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), 
+							tracer_x(xcos, passive_tracers, i));
+		} else if (run_config.tracers[i] == "y") {
+			Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), 
+							tracer_y(ycos, passive_tracers, i));
 		}
 	}
 }
@@ -415,7 +455,39 @@ struct swe_test_case_5 {
 			xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
 			vors(i,j) = 2 * u0 * sin(lat);
 			divs(i,j) = 0.0;
-			height(i,j) = 5960.0*9.81 / (6371000.0*6371000.0) - (u0*M_PI*M_PI/(86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+			height(i,j) = 5960.0 / 6371000.0 - 1.0/(9.81/6371000.0)*(u0*M_PI*M_PI/(86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+		}
+	}
+};
+
+struct swe_gau_div {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_gau_div(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : 
+					xcos(xcos_), ycos(ycos_), zcos(zcos_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i) const {
+		int jmax = xcos.extent_int(1);
+		double center_lat = 0.05 * M_PI;
+		double center_lon = M_PI;
+		double cx, cy, cz;
+		xyz_from_lonlat(cx, cy, cz, center_lon, center_lat);
+		double dx, dy, dz, d2;
+		for (int j = 0; j < jmax; j++) {
+			dx = xcos(i,j) - cx;
+			dy = ycos(i,j) - cy;
+			dz = zcos(i,j) - cz;
+			d2 = dx*dx + dy*dy + dz*dz;
+			divs(i,j) = 12.566370614359172 * exp(-16.0 * d2) / 86400.0; // constant is 4pi
+			vors(i,j) = 0.0;
+			height(i,j) = 1.0;
 		}
 	}
 };
@@ -447,6 +519,12 @@ void swe_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 		Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), swe_test_case_2(xcos, ycos, zcos, vorticity, divergence, height));
 	} else if (run_config.initial_condition == "tc5") {
 		Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), swe_test_case_5(xcos, ycos, zcos, vorticity, divergence, height));
+	} else if (run_config.initial_condition == "gd") {
+		Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), swe_gau_div(xcos, ycos, zcos, vorticity, divergence, height));
 	}
 	Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), apply_topo(height, topo));
 }
+
+// void swe_initialize_topo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo) {
+	
+// }
