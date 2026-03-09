@@ -428,8 +428,31 @@ struct swe_test_case_2 {
 			xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
 			vors(i,j) = 2 * u0 * sin(lat);
 			divs(i,j) = 0.0;
-			height(i,j) = 2.94e4 / (6371000.0*6371000.0) - (2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+			// height(i,j) = 2.94e4 / (6371000.0*6371000.0) - (2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+			height(i,j) = 2940.0 / 63710000.0 - 1.0/(9.81/6371000.0)*(2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
 		}
+	}
+};
+
+struct swe_test_case_2_ll {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_test_case_2_ll(Kokkos::View<double*, Kokkos::HostSpace> lats_, Kokkos::View<double*, Kokkos::HostSpace> lons_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : lats(lats_), lons(lons_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i, const int j) const {
+		// double lat, lon;
+		double lat = lats(i)*M_PI/180.0;
+		double u0 = M_PI/(6.0*86400.0); // 2pi/(12 days), converted to 1/s 
+		double slat = std::sin(lat);
+		vors(i,j) = 2.0*u0*slat;
+		divs(i,j) = 0.0;
+		height(i,j) = 2940.0 / 6371000.0 - 1.0/(9.81*6371000.0)*(2.0*M_PI*u0/86400.0 + 0.5*u0*u0)*slat*slat;
 	}
 };
 
@@ -525,6 +548,18 @@ void swe_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 	Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.active_panel_count), apply_topo(height, topo));
 }
 
-// void swe_initialize_topo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo) {
-	
-// }
+void swe_initialize_ll(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vor, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& div, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo) {
+	if (run_config.initial_condition == "tc2") {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), swe_test_case_2_ll(lats, lons, vor, div, height));
+	}
+	Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.lat_count), apply_topo(height, topo));
+}
+
+
+
+
+
+
+

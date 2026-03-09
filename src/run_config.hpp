@@ -13,6 +13,10 @@ struct RunConfig {
 	int levels; // base refinement level of the cubed sphere
 	int* cubed_sphere_level_start; // start location of cubed sphere panels of each level
 	int interp_degree; // interpolation degree to use
+	int leaf_size; // max number of points in a leaf panel
+	double grid_spacing; // grid spacing in degrees for lat-lon grid
+	int lat_count; // number of latitude points
+	int lon_count; // number of longitude points
 	int end_time; // end time in seconds, 86400 = 1 day
 	int delta_t; // time step in seconds
 	int time_steps; // number of time steps

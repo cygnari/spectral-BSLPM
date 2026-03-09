@@ -226,6 +226,7 @@ struct div_tends{
 		double lat, lon, latp, latm, lonp, lonm, x1, x2, y1, y2, z1, z2, val1, val2, val3, val4, curl_rad_comp, lap_comp, xieta[2], bli_basis_vals[121], lap_val;
 		int panel_index, one_d_index;
 		double u0 = (Kokkos::numbers::pi) / (6.0*86400.0);
+		double omega = 2.0*Kokkos::numbers::pi/86400.0;
 		xyz_to_latlon(lat, lon, xcos(i,j), ycos(i,j), zcos(i,j));
 		latp = lat + epsilon;
 		latm = lat - epsilon;
@@ -295,6 +296,10 @@ struct div_tends{
 				one_d_index += 1;
 			}
 		}
+		xieta_from_xyz(x2, y2, z2, xieta);
+		panel_index = point_locate_panel(cubed_sphere_panels, x2, y2, z2);
+		interp_vals_bli(bli_basis_vals, xieta[0], xieta[1], Kokkos::numbers::pi/4.0*cubed_sphere_panels(panel_index).min_xi, Kokkos::numbers::pi/4.0*cubed_sphere_panels(panel_index).max_xi, 
+						Kokkos::numbers::pi/4.0*cubed_sphere_panels(panel_index).min_eta, Kokkos::numbers::pi/4.0*cubed_sphere_panels(panel_index).max_eta, degree);
 		one_d_index = 0;
 		for (int m = 0; m < degree+1; m++) {
 			for (int n = 0; n < degree+1; n++) {
@@ -308,11 +313,13 @@ struct div_tends{
 			// close to north pole
 			curl_rad_comp -= (val1 - 4.0*val2 + 3.0*(vor(i,j)+2.0*omega*zcos(i,j))*u_vel(i,j)*Kokkos::cos(lat))/(2.0*epsilon);
 			lap_comp += -Kokkos::tan(lat) * (val3 - 4.0*val4 + 3.0*lap_val) / (2.0*epsilon) + (val3 - 2.0*val4 + lap_val)/(epsilon*epsilon);
+			// div_tend(i,j) = curl_rad_comp - lap_comp;
 			div_tend(i,j) = 0.0;
 		} else if (lat < -0.5*Kokkos::numbers::pi+epsilon) {
 			// close to south pole
 			curl_rad_comp -= (-3.0*(vor(i,j)+2.0*omega*zcos(i,j))*u_vel(i,j)*Kokkos::cos(lat) + 4.0*val1 - val2) / (2.0*epsilon);  
 			lap_comp += -Kokkos::tan(lat) * (-3.0*lap_val+4.0*val3-val4) + (lap_val-2.0*val3+val4)/(epsilon*epsilon);
+			// div_tend(i,j) = curl_rad_comp - lap_comp;
 			div_tend(i,j) = 0.0;
 		} else { 
 			curl_rad_comp -= (val1-val2) / (2.0*epsilon*Kokkos::cos(lat));
@@ -321,6 +328,17 @@ struct div_tends{
 			// lap_comp = -2.0*(u0+omega)*u0*(Kokkos::cos(lat)*Kokkos::cos(lat)-2.0*Kokkos::sin(lat)*Kokkos::sin(lat));
 			div_tend(i,j) = curl_rad_comp - lap_comp;
 		}
+
+		// if ((i == 1) and (j == 1)) {
+		// 	std::cout << "div tend: " << div_tend(i,j) << std::endl;
+		// 	std::cout << "curl rad comp: " << curl_rad_comp << std::endl;
+		// 	std::cout << "curl rad comp: " << -2.0*(u0+omega)*u0*(Kokkos::cos(lat)*Kokkos::cos(lat)-2.0*Kokkos::sin(lat)*Kokkos::sin(lat)) << std::endl;
+		// 	std::cout << "lap comp: " << -lap_comp << std::endl;
+		// 	std::cout << "lap comp: " << 2.0*(u0+omega)*u0*(Kokkos::cos(lat)*Kokkos::cos(lat)-2.0*Kokkos::sin(lat)*Kokkos::sin(lat)) << std::endl;
+		// 	std::cout << val3 << " " << lap_val << " " << val4 << std::endl;
+		// 	// std::cout << "surface lap comp: " << height_lap[j] << std::endl;
+		// 	// std::cout << "surface lap comp: " << (u0+2*omega)*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat)) << std::endl;
+		// }
 		
 		// if (1.0-Kokkos::abs(zcos(i,j)) < 1e-8) {
 		// 	// close to pole
@@ -758,7 +776,7 @@ struct modify_tendencies{
 
 	KOKKOS_INLINE_FUNCTION
 	void operator()(const int i, const int j) const {
-		vor_tend(i,j) -= b_vor_tend(i,j);
+		// vor_tend(i,j) -= b_vor_tend(i,j);
 		div_tend(i,j) -= b_div_tend(i,j);
 		h_tend(i,j) -= b_h_tend(i,j);
 	}
@@ -771,7 +789,7 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 							Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels, Kokkos::View<interact_pair*>& interaction_list, 
 							Kokkos::View<double**, Kokkos::LayoutRight>& vel_x, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y, 
 							Kokkos::View<double**, Kokkos::LayoutRight>& vel_z, Kokkos::View<double***, Kokkos::LayoutRight>& passive_tracers, Kokkos::View<double**, Kokkos::LayoutRight>& base_vor_tend, 
-							Kokkos::View<double**, Kokkos::LayoutRight>& base_div_tend, Kokkos::View<double**, Kokkos::LayoutRight>& base_h_tend, double time) {
+							Kokkos::View<double**, Kokkos::LayoutRight>& base_div_tend, Kokkos::View<double**, Kokkos::LayoutRight>& base_h_tend, Kokkos::View<int*>& one_d_no_of_points, Kokkos::View<int**, Kokkos::LayoutRight>& two_d_to_1d, double time) {
 	int offset = cubed_sphere_panels.extent_int(0) - run_config.active_panel_count;
 	int dim2size = (run_config.interp_degree+1)*(run_config.interp_degree+1);
 	// Compute k1
@@ -819,6 +837,9 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	MPI_Allreduce(MPI_IN_PLACE, &vel_x(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_y(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_z(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_x);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_y);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_z);
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_x, 1e-9));
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_y, 1e-9));
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_z, 1e-8));
@@ -829,7 +850,10 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	Kokkos::View<double**, Kokkos::LayoutRight> height_update_1 ("height k1", run_config.active_panel_count, dim2size);
 	Kokkos::parallel_for(run_config.active_panel_count, swe_tendency_computation_2(xcos, ycos, zcos, vel_x, vel_y, vel_z, vors, vor_update_1, divs, div_update_1, height, effective_height, height_update_1, cubed_sphere_panels, run_config.omega,run_config.interp_degree, offset));
 	// swe_tendency_computation_3(run_config, xcos, ycos, zcos, vel_x, vel_y, vel_z, vors, vor_update_1, divs, div_update_1, height, effective_height, height_update_1, cubed_sphere_panels);
-	// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_1, div_update_1, height_update_1, base_vor_tend, base_div_tend, base_h_tend));
+	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_1, div_update_1, height_update_1, base_vor_tend, base_div_tend, base_h_tend));
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vor_update_1);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, div_update_1);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, height_update_1);
 
 	// compute k2
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {proxy_target_1.extent_int(0), proxy_target_1.extent_int(1)}), zero_out(proxy_target_1));
@@ -864,6 +888,9 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	MPI_Allreduce(MPI_IN_PLACE, &vel_x_2(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_y_2(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_z_2(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_x);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_y);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_z);
 	// MPI_Allreduce(MPI_IN_PLACE, &height_lap_2(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_x_2, 1e-9));
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_y_2, 1e-9));
@@ -876,7 +903,10 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	apply_topography(run_config, xcos, ycos, zcos, disp_x, disp_y, disp_z, disp_heights, effective_height);
 	Kokkos::parallel_for(run_config.active_panel_count, swe_tendency_computation_2(xcos, ycos, zcos, vel_x_2, vel_y_2, vel_z_2, vors, vor_update_2, divs, div_update_2, disp_heights, effective_height, height_update_2, cubed_sphere_panels, run_config.omega,run_config.interp_degree, offset));
 	// swe_tendency_computation_3(run_config, xcos, ycos, zcos, vel_x_2, vel_y_2, vel_z_2, vors, vor_update_2, divs, div_update_2, disp_heights, effective_height, height_update_2, cubed_sphere_panels);
-	// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_2, div_update_2, height_update_2, base_vor_tend, base_div_tend, base_h_tend));
+	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_2, div_update_2, height_update_2, base_vor_tend, base_div_tend, base_h_tend));
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vor_update_2);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, div_update_2);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, height_update_2);
 
 	// // compute k3
 	Kokkos::View<double**, Kokkos::LayoutRight> vel_x_3 ("vel x 3", run_config.active_panel_count, dim2size);
@@ -904,6 +934,9 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	MPI_Allreduce(MPI_IN_PLACE, &vel_x_3(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_y_3(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_z_3(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_x);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_y);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_z);
 	// MPI_Allreduce(MPI_IN_PLACE, &height_lap_3(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_x_3, 1e-9));
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_y_3, 1e-9));
@@ -916,7 +949,10 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	apply_topography(run_config, xcos, ycos, zcos, disp_x, disp_y, disp_z, disp_heights, effective_height);
 	Kokkos::parallel_for(run_config.active_panel_count, swe_tendency_computation_2(xcos, ycos, zcos, vel_x_3, vel_y_3, vel_z_3, vors, vor_update_3, divs, div_update_3, disp_heights, effective_height, height_update_3, cubed_sphere_panels, run_config.omega,run_config.interp_degree, offset));
 	// swe_tendency_computation_3(run_config, xcos, ycos, zcos, vel_x_3, vel_y_3, vel_z_3, vors, vor_update_3, divs, div_update_3, disp_heights, effective_height, height_update_3, cubed_sphere_panels);
-	// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_3, div_update_3, height_update_3, base_vor_tend, base_div_tend, base_h_tend));
+	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_3, div_update_3, height_update_3, base_vor_tend, base_div_tend, base_h_tend));
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vor_update_3);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, div_update_3);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, height_update_3);
 
 	// // compute k4
 	Kokkos::View<double**, Kokkos::LayoutRight> vel_x_4 ("vel x 4", run_config.active_panel_count, dim2size);
@@ -949,6 +985,9 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	MPI_Allreduce(MPI_IN_PLACE, &vel_x_4(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_y_4(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(MPI_IN_PLACE, &vel_z_4(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_x);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_y);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vel_z);
 	// MPI_Allreduce(MPI_IN_PLACE, &height_lap_4(0,0), run_config.active_panel_count * pow(run_config.interp_degree+1,2), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_x_4, 1e-9));
 	// Kokkos::parallel_for(run_config.active_panel_count, filter_vals(vel_y_4, 1e-9));
@@ -961,7 +1000,10 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	Kokkos::View<double**, Kokkos::LayoutRight> height_update_4 ("height k4", run_config.active_panel_count, dim2size);
 	Kokkos::parallel_for(run_config.active_panel_count, swe_tendency_computation_2(xcos, ycos, zcos, vel_x_4, vel_y_4, vel_z_4, vors, vor_update_4, divs, div_update_4, disp_heights, effective_height, height_update_4, cubed_sphere_panels, run_config.omega,run_config.interp_degree, offset));
 	// swe_tendency_computation_3(run_config, xcos, ycos, zcos, vel_x_4, vel_y_4, vel_z_4, vors, vor_update_4, divs, div_update_4, disp_heights, effective_height, height_update_4, cubed_sphere_panels);
-	// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_4, div_update_4, height_update_4, base_vor_tend, base_div_tend, base_h_tend));
+	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {0, 0}, {run_config.active_panel_count, dim2size}), modify_tendencies(vor_update_4, div_update_4, height_update_4, base_vor_tend, base_div_tend, base_h_tend));
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, vor_update_4);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, div_update_4);
+	unify_boundary_vals(run_config, one_d_no_of_points, two_d_to_1d, height_update_4);
 
 	// compute vor/div/h at arrival points
 	Kokkos::View<double**, Kokkos::LayoutRight> arrival_vor ("arrival vor", run_config.active_panel_count, dim2size);

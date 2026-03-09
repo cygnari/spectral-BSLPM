@@ -39,3 +39,10 @@ target_include_directories(swe_time_evo PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>)
+
+add_executable(swe_time_evo_ll swe_time_evo_ll.cpp)
+target_link_libraries(swe_time_evo_ll PUBLIC specBSLPM MPI::MPI_C Kokkos::kokkos KokkosKernels::kokkoskernels netCDF::netcdf)
+target_include_directories(swe_time_evo_ll PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:include>)

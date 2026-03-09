@@ -44,7 +44,9 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	    if (stoi(word2) == 0) {
 	      run_config.balance_ic = false;
 	    }
-	  } else if (word1 == "end_time") {
+	  } else if (word1 == "grid_spacing") {
+	    run_config.grid_spacing = stod(word2);
+		} else if (word1 == "end_time") {
 	    run_config.end_time = stoi(word2);
 	  } else if (word1 == "delta_t") {
 	    run_config.delta_t = stoi(word2);
@@ -84,7 +86,6 @@ void read_run_config(const std::string file_name, RunConfig& run_config) {
 	    run_config.point_count = 6 * pow(4, run_config.levels);
 	    run_config.panel_count = 2 * (pow(4, run_config.levels) - 1);
 	    run_config.active_panel_count = 6 * pow(4, run_config.levels - 1);
-	    run_config.cubed_sphere_level_start = (int*) malloc((run_config.levels) * sizeof(int));
 	    return;
 	  }
 	}

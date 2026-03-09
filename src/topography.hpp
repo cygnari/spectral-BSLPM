@@ -12,4 +12,6 @@ void apply_topography_2(const RunConfig& run_config, Kokkos::View<double**, Kokk
 							Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& disp_x, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& disp_y, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& disp_z, 
 							Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& effective_height);
 
+void apply_topography_host_ll(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo);
+
 #endif

@@ -5,6 +5,7 @@
 #include "run_config.hpp"
 #include "deriv_funcs_impl.hpp"
 #include "interp_funcs_impl.hpp"
+#include <iostream>
 
 struct swe_tendency_computation_2{
 	Kokkos::View<double**, Kokkos::LayoutRight> xcos;
@@ -50,32 +51,34 @@ struct swe_tendency_computation_2{
 			y = ycos(i,j);
 			z = zcos(i,j);
 			xyz_to_latlon(lat, lon, x, y, z);
-			if (abs(z) < 1 - 1e-16) { // away from pole
-				uvel = (-y*xc + x*yc)/Kokkos::sqrt(x*x+y*y);
-				vvel = -((x*xc+y*yc)*z-(x*x+y*y)*zc)/Kokkos::sqrt(x*x+y*y);
-			} else {
-				uvel = 0;
-				vvel = 0;
-			}
-			uvel -= u0*Kokkos::cos(lat);
+			// if (abs(z) < 1 - 1e-16) { // away from pole
+			// 	uvel = (-y*xc + x*yc)/Kokkos::sqrt(x*x+y*y);
+			// 	vvel = -((x*xc+y*yc)*z-(x*x+y*y)*zc)/Kokkos::sqrt(x*x+y*y);
+			// } else {
+			// 	uvel = 0;
+			// 	vvel = 0;
+			// }
+			// uvel = -u0*Kokkos::cos(lat);
+			// if (Kokkos::abs(vvel) < 1e-9) {
+			// 	vvel = 0;
+			// }
+			// vvel = 0;
 			// vx = -Kokkos::sin(lat)*Kokkos::cos(lon)*vvel - Kokkos::sin(lon)*uvel;
 			// vy = -Kokkos::sin(lat)*Kokkos::sin(lon)*vvel + Kokkos::cos(lon)*uvel;
 			// vz = Kokkos::cos(lat)*vvel;
 			vx = vel_x(i,j);
 			vy = vel_y(i,j);
 			vz = vel_z(i,j);
-
 			xietavec_from_xyzvec(xi_vel[j], eta_vel[j], vx, vy, vz, xcos(i,j), ycos(i,j), zcos(i,j));
-			// dp = xi_vel[j]*xi_vel[j] + eta_vel[j]*eta_vel[j];
-			// div_comp_xi[j] = height(i,j) * xi_vel[j];
-			// div_comp_eta[j] = height(i,j) * eta_vel[j];
 			div_comp_xi[j] = height(i,j)*xi_vel[j];
 			div_comp_eta[j] = height(i,j)*eta_vel[j];
 			zetaf = vor(i,j) + 2 * omega * zcos(i,j);
 			xi_vel[j] *= zetaf;
 			eta_vel[j] *= zetaf;
-			dp = vel_x(i,j)*vel_x(i,j) + vel_y(i,j)*vel_y(i,j) + vel_z(i,j)*vel_z(i,j);
+			// dp = vel_x(i,j)*vel_x(i,j) + vel_y(i,j)*vel_y(i,j) + vel_z(i,j)*vel_z(i,j);
+			dp = vx*vx + vy*vy + vz*vz;
 			lap_comp[j] = surface(i,j);
+			// - (5960.0 / 6371000.0 - 1.0/(9.81/6371000.0)*(u0*Kokkos::numbers::pi*Kokkos::numbers::pi/(86400.0*86400.0) + 0.5 * u0 * u0) * Kokkos::sin(lat) * Kokkos::sin(lat));
 			dp_vals[j] = 0.5*dp;
 			
 		}
@@ -98,16 +101,29 @@ struct swe_tendency_computation_2{
 			abs_vor_tend = -div(i,j) * abs_vor;
 			vor_tend(i,j) = abs_vor_tend - 2.0 * omega * vel_z(i,j);
 			height_lap[j] *= 9.81/6371000.0;
+			// height_lap[j] *= 0.5;
+			// curl_rad_comp[j] *= 0.5;
 			// curl_rad_comp[j] = -2.0*(u0+omega)*u0*(Kokkos::cos(lat)*Kokkos::cos(lat)-2.0*Kokkos::sin(lat)*Kokkos::sin(lat));
 			// dp_lap[j] = u0*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat));
 			// height_lap[j] = (u0+2*omega)*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat));
 			div_tend(i,j) = curl_rad_comp[j] - height_lap[j] - dp_lap[j]; 
 			height_tend(i,j) = height_div[j];
-			if (1.0 - Kokkos::abs(z) < 1e-8) {
+			if (1.0 - Kokkos::abs(z) < 1e-5) {
 				div_tend(i,j) = 0.0;
 				height_tend(i,j) = 0.0;
 			}
+			// if ((i == 1) and (j == 1)) {
+			// 	std::cout << "div tend: " << div_tend(i,j) << std::endl;
+			// 	std::cout << "curl rad comp: " << curl_rad_comp[j] << std::endl;
+			// 	std::cout << "curl rad comp: " << -2.0*(u0+omega)*u0*(Kokkos::cos(lat)*Kokkos::cos(lat)-2.0*Kokkos::sin(lat)*Kokkos::sin(lat)) << std::endl;
+			// 	std::cout << "dp lap comp: " << dp_lap[j] << std::endl;
+			// 	std::cout << "dp lap comp: " << u0*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat)) << std::endl;
+			// 	std::cout << "surface lap comp: " << height_lap[j] << std::endl;
+			// 	std::cout << "surface lap comp: " << (u0+2*omega)*u0*(2*Kokkos::sin(lat)*Kokkos::sin(lat)-Kokkos::cos(lat)*Kokkos::cos(lat)) << std::endl;
+			// }
 		}
+
+
 	}
 };
 

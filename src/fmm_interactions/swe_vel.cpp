@@ -65,3 +65,35 @@ void swe_vel_interactions_2(const RunConfig& run_config, Kokkos::View<double**, 
     Kokkos::parallel_for(Kokkos::RangePolicy(lb, ub), swe_vel_panel_interaction_2(disp_x, disp_y, disp_z, target_pots_1, target_pots_2, target_pots_3, source_vals_vor, source_vals_div, interp_vals, cubed_sphere_panels, interaction_list, offset, run_config.kernel_eps));
     Kokkos::fence();
 }
+
+void swe_vel_interactions_ll(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_1, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_2, Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_3, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& source_vals_vor, Kokkos::View<double**, Kokkos::LayoutRight>& source_vals_div, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& vors, Kokkos::View<double**, Kokkos::LayoutRight>& divs, Kokkos::View<double**, Kokkos::LayoutRight>& area,
+                                Kokkos::View<interact_pair*>& interaction_list,  Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, Kokkos::View<int**, Kokkos::LayoutRight>& leaf_panel_points) {
+    // first calculate subset of interactions to compute
+    int ints[run_config.mpi_p], lbs[run_config.mpi_p], ubs[run_config.mpi_p];
+    for (int i = 0; i < run_config.mpi_p; i++) {
+        ints[i] = int(run_config.fmm_interaction_count / run_config.mpi_p);
+    } 
+    int total = run_config.mpi_p * ints[0];
+    int gap = run_config.fmm_interaction_count - total;
+    for (int i = 1; i < gap + 1; i++) {
+        ints[i] += 1;
+    }
+    lbs[0] = 0;
+    ubs[0] = ints[0];
+    for (int i = 1; i < run_config.mpi_p; i++) {
+        lbs[i] = ubs[i-1];
+        ubs[i] = lbs[i] + ints[i];
+    }
+    int lb, ub;
+    lb = lbs[run_config.mpi_id];
+    ub = ubs[run_config.mpi_id];
+
+    Kokkos::parallel_for(Kokkos::RangePolicy(lb, ub), swe_vel_panel_interaction_ll(
+                            xcos, ycos, zcos, target_pots_1, target_pots_2, target_pots_3, source_vals_vor, source_vals_div, 
+                            vors, divs, area, leaf_panel_points, cubed_sphere_panels, interaction_list, run_config.kernel_eps, run_config.interp_degree));
+    Kokkos::fence();
+}

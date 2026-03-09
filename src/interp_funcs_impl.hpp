@@ -16,7 +16,8 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	xi_offset = 0.5*(max_xi + min_xi);
 	eta_range = 0.5*(max_eta - min_eta);
 	eta_offset = 0.5*(max_eta + min_eta);
-	double xi_f_vals[121], eta_f_vals[121];
+	double cheb_xi[11], cheb_eta[11], bli_weights[11];
+	double xi_f_vals[11], eta_f_vals[11];
 
 	if (xi < min_xi - 1e-16) {
 		Kokkos::abort("xi less than panel min xi, interp vals bli");
@@ -31,11 +32,32 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 		Kokkos::abort("eta greater than panel max eta, interp vals bli");
 	}
 
+	for (int i = 0; i < (interp_deg+1)*(interp_deg+1); i++) {
+		basis_vals[i] = 0.0;
+	}
+
+	if (interp_deg == 0) {
+		cheb_xi[0] = xi_offset;
+		cheb_eta[0] = eta_offset;
+		bli_weights[0] = 1;
+	} else {
+		for (int i = 0; i < interp_deg+1; i++) {
+			cheb_xi[i] = Kokkos::cos(Kokkos::numbers::pi * i / interp_deg) * xi_range + xi_offset;
+			cheb_eta[i] = Kokkos::cos(Kokkos::numbers::pi * i / interp_deg) * eta_range + eta_offset;
+			if (i == 0) {
+				bli_weights[i] = 0.5;
+			} else if (i == interp_deg) {
+				bli_weights[i] = 0.5 * pow(-1, i);
+			} else {
+				bli_weights[i] = pow(-1, i);
+			}
+		}
+	}
+
 	bool found_xi_point = false;
 	double denom_xi, bliweight;
 	for (int i = 0; i < interp_deg+1; i++) {
-		chebxi = Kokkos::cos(Kokkos::numbers::pi * i / interp_deg) * xi_range + xi_offset;
-		if (Kokkos::abs(xi - chebxi) < 1e-16) {
+		if (Kokkos::abs(xi - cheb_xi[i]) < 1e-16) {
 			found_xi_point = true;
 			for (int j = 0; j < interp_deg+1; j++) {
 				xi_f_vals[j] = 0;
@@ -47,15 +69,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	if (not found_xi_point) {
 		denom_xi = 0;
 		for (int i = 0; i < interp_deg+1; i++) {
-			chebxi = Kokkos::cos(Kokkos::numbers::pi * i / interp_deg) * xi_range + xi_offset;
-			if (i == 0) {
-				bliweight = 0.5;
-			} else if (i == interp_deg) {
-				bliweight = 0.5 * Kokkos::pow(-1, i);
-			} else {
-				bliweight = pow(-i, i);
-			}
-			val = bliweight / (xi - chebxi);
+			val = bli_weights[i] / (xi - cheb_xi[i]);
 			xi_f_vals[i] = val;
 			denom_xi += val;
 		}
@@ -67,8 +81,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	bool found_eta_point = false;
 	double denom_eta;
 	for (int i = 0; i < interp_deg+1; i++) {
-		chebeta = Kokkos::cos(Kokkos::numbers::pi * i / interp_deg) * eta_range + eta_offset;
-		if (Kokkos::abs(eta - chebeta) < 1e-16) {
+		if (Kokkos::abs(eta - cheb_eta[i]) < 1e-16) {
 			found_eta_point = true;
 			for (int j = 0; j < interp_deg+1; j++) {
 				eta_f_vals[j] = 0;
@@ -80,15 +93,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	if (not found_eta_point) {
 		denom_eta = 0;
 		for (int i = 0; i < interp_deg+1; i++) {
-			chebeta = Kokkos::cos(Kokkos::numbers::pi * i / interp_deg) * eta_range + eta_offset;
-			if (i == 0) {
-				bliweight = 0.5;
-			} else if (i == interp_deg) {
-				bliweight = 0.5 * Kokkos::pow(-1, i);
-			} else {
-				bliweight = pow(-i, i);
-			}
-			val = bliweight / (eta - chebeta);
+			val = bli_weights[i] / (eta - cheb_eta[i]);
 			eta_f_vals[i] = val;
 			denom_eta += val;
 		}
@@ -97,7 +102,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 		}
 	}
 
-	int index;
+	int index = 0;
 	for (int i = 0; i < interp_deg+1; i++) {
 		for (int j = 0; j < interp_deg+1; j++) {
 			index = i * (interp_deg+1) + j;

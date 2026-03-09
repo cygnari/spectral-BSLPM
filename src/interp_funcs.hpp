@@ -10,6 +10,9 @@
 void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, double max_xi, 
 						double min_eta, double max_eta, int interp_deg);
 
+void interp_vals_bli_2(double* basis_vals, double xi, double eta, double min_xi, double max_xi, 
+						double min_eta, double max_eta, int interp_deg);
+
 void interp_init(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& interp_info);
 
 int point_locate_panel_2(Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, double x, double y, double z);
@@ -34,27 +37,34 @@ template <class LayoutType> struct latlon_interp_host {
 		// interpolates data to lat[i] lon[j]
 		double lat = lats(i) * M_PI / 180.0;
 		double lon = lons(j) * M_PI / 180.0;
+		// std::cout << lats(i) << " " << lons(j) << std::endl;
 		// double colat = M_PI / 2.0 - lat;
 		double x, y, z;
 		int one_d_index;
 		x = cos(lat) * cos(lon);
 		y = cos(lat) * sin(lon);
 		z = sin(lat);
+		// std::cout << x << " " << y << " " << z << std::endl;
 		int panel = point_locate_panel_2(cubed_sphere_panels, x, y, z);
+		// std::cout << panel << std::endl;
 		double xi, eta, xieta[2], bli_basis_vals[121];
 		xieta_from_xyz(x, y, z, xieta);
+		// std::cout << xieta[0] << " " << xieta[1] << std::endl;
 		interp_vals_bli(bli_basis_vals, xieta[0], xieta[1], M_PI/4.0*cubed_sphere_panels(panel).min_xi, M_PI/4.0*cubed_sphere_panels(panel).max_xi, 
 						M_PI/4.0*cubed_sphere_panels(panel).min_eta, M_PI/4.0*cubed_sphere_panels(panel).max_eta, degree);
+		// std::cout << M_PI/4.0*cubed_sphere_panels(panel).min_xi << " " << M_PI/4.0*cubed_sphere_panels(panel).max_xi << " " << M_PI/4.0*cubed_sphere_panels(panel).min_eta << " " << M_PI/4.0*cubed_sphere_panels(panel).max_eta << std::endl;
 		interp_data(i,j) = 0;
 		for (int m = 0; m < degree+1; m++) {
 			for (int n = 0; n < degree+1; n++) {
 				one_d_index = m * (degree + 1) + n;
+				// std::cout << bli_basis_vals[one_d_index] << " " << data(panel-offset, one_d_index) << std::endl;
 				interp_data(i,j) += bli_basis_vals[one_d_index] * data(panel-offset,one_d_index);
 			}
 		}
-		if (1.0 - std::abs(z) < 1e-10) {
-			interp_data(i,j) = 0.0;
-		}
+		// if (1.0 - std::abs(z) < 1e-10) {
+		// 	interp_data(i,j) = 0.0;
+		// }
+		// std::cout << interp_data(i,j) << std::endl;
 	}
 };
 
@@ -62,6 +72,7 @@ template <class LayoutType> void interp_to_latlon_host(const RunConfig& run_conf
 								Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& interped_data, 
 								Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons) {
 	int offset = cubed_sphere_panels.extent_int(0) - run_config.active_panel_count;
+	// Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {447, 1131}, {448, 1132}), latlon_interp_host<LayoutType>(data, cubed_sphere_panels, interped_data, lats, lons, run_config.interp_degree, offset));
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {lats.extent_int(0), lons.extent_int(0)}), latlon_interp_host<LayoutType>(data, cubed_sphere_panels, interped_data, lats, lons, run_config.interp_degree, offset));
 }
 

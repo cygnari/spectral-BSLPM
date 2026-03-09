@@ -2,7 +2,6 @@
 #include <iostream>
 
 #include "cubed_sphere_transforms.hpp"
-// #include "cubed_sphere_transforms_impl.hpp"
 #include "general_utils.hpp"
 #include "initialize_cubed_sphere.hpp"
 #include "run_config.hpp"
@@ -184,7 +183,8 @@ struct cubed_sphere_init_2 {
 	}
 };
 
-void cubed_sphere_panels_init(const RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels) {
+void cubed_sphere_panels_init(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels) {
+	run_config.cubed_sphere_level_start = (int*) malloc((run_config.levels) * sizeof(int));
 	for (int i = 0; i < 6; i++) {
 		cubed_sphere_panels(i).id = i;
 		cubed_sphere_panels(i).face = i;
@@ -444,3 +444,160 @@ template void vec_2d_to_1d<Kokkos::LayoutRight>(const RunConfig& run_config, Kok
 template void vec_2d_to_1d<Kokkos::LayoutStride>(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& vec_1d, Kokkos::View<double**, Kokkos::LayoutStride, Kokkos::HostSpace>& vec, 
 						Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& two_d_to_1d, bool add);
 
+void initialize_cube_sphere_irreg_points(RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos,
+											Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_tree, Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& leaf_panel_point_ids) {
+	std::vector<CubedSpherePanel> cube_panels(6);
+	std::vector<std::vector<int>> points_inside(6);
+	double min_xi, max_xi, mid_xi, min_eta, max_eta, mid_eta, xieta[2], xi, eta;
+	int start, points_to_assign, index_i, index_j, which_panel, point_count;
+	for (int i = 0; i < 6; i++) {
+		cube_panels[i].id = i;
+		cube_panels[i].face = i;
+		cube_panels[i].level = 0;
+		cube_panels[i].parent_id = -1;
+		cube_panels[i].min_xi = -M_PI/4.0;
+		cube_panels[i].max_xi = M_PI/4.0;
+		cube_panels[i].min_eta = -M_PI/4.0;
+		cube_panels[i].max_eta = M_PI/4.0;
+		cube_panels[i].is_leaf = true;
+		cube_panels[i].point_count = 0;
+	}
+
+	int index, face;
+	for (int i = 1; i < run_config.lat_count-1; i++) { // ignore pole points for now
+		for (int j = 0; j < run_config.lon_count; j++) {
+			index = i*run_config.lon_count + j;
+			face = face_from_xyz(xcos(i,j), ycos(i,j), zcos(i,j));
+			cube_panels[face].point_count += 1;
+			points_inside[face].push_back(index);
+		}
+	}
+	// south pole
+	index = 0;
+	face = face_from_xyz(xcos(0,0), ycos(0,0), zcos(0,0));
+	cube_panels[face].point_count += 1;
+	points_inside[face].push_back(index);
+	// north pole
+	index = run_config.lat_count*run_config.lon_count - 1;
+	face = face_from_xyz(xcos(run_config.lat_count-1, run_config.lon_count-1), ycos(run_config.lat_count-1, run_config.lon_count-1), zcos(run_config.lat_count-1, run_config.lon_count-1));
+	cube_panels[face].point_count += 1;
+	points_inside[face].push_back(index);
+
+	for (int i = 0; i < cube_panels.size(); i++) {
+		if (cube_panels[i].point_count > run_config.leaf_size) {
+			// refine panel
+			cube_panels[i].is_leaf = false;
+			CubedSpherePanel sub_panel1, sub_panel2, sub_panel3, sub_panel4;
+			min_xi = cube_panels[i].min_xi;
+			max_xi = cube_panels[i].max_xi;
+			min_eta = cube_panels[i].min_eta;
+			max_eta = cube_panels[i].max_eta;
+			mid_xi = 0.5*(min_xi + max_xi);
+			mid_eta = 0.5*(min_eta + max_eta);
+			sub_panel1.min_xi = mid_xi, sub_panel1.max_xi = max_xi, sub_panel1.min_eta = mid_eta, sub_panel1.max_eta = max_eta;
+			sub_panel2.min_xi = min_xi, sub_panel2.max_xi = mid_xi, sub_panel2.min_eta = mid_eta, sub_panel2.max_eta = max_eta;
+			sub_panel3.min_xi = min_xi, sub_panel3.max_xi = mid_xi, sub_panel3.min_eta = min_eta, sub_panel3.max_eta = mid_eta;
+			sub_panel4.min_xi = mid_xi, sub_panel4.max_xi = max_xi, sub_panel4.min_eta = min_eta, sub_panel4.max_eta = mid_eta;
+			start = cube_panels.size();
+			cube_panels.push_back(sub_panel1);
+			cube_panels.push_back(sub_panel2);
+			cube_panels.push_back(sub_panel3);
+			cube_panels.push_back(sub_panel4);
+			for (int j = 0; j < 4; j++) {
+				cube_panels[start+j].level = cube_panels[i].level + 1;
+				cube_panels[start+j].id = start+j;
+				cube_panels[start+j].face = cube_panels[i].face;
+				cube_panels[start+j].parent_id = cube_panels[i].id;
+				cube_panels[start+j].point_count = 0;
+				cube_panels[start+j].is_leaf = true;
+			}
+			cube_panels[i].child1 = start;
+			cube_panels[i].child2 = start+1;
+			cube_panels[i].child3 = start+2;
+			cube_panels[i].child4 = start+3;
+			
+
+			points_to_assign = cube_panels[i].point_count;
+			points_inside.resize(start+4);
+			for (int j = 0; j < points_to_assign; j++) {
+				index = points_inside[i][j];
+				index_j = index % run_config.lon_count;
+				index_i = index / run_config.lon_count;
+				xieta_from_xyz(xcos(index_i, index_j), ycos(index_i, index_j), zcos(index_i, index_j), xieta);
+				xi = xieta[0];
+				eta = xieta[1];
+				if (xi < mid_xi) {
+					if (eta < mid_eta) {
+						which_panel = 2;
+					} else {
+						which_panel = 1;
+					}
+				} else {
+					if (eta < mid_eta) {
+						which_panel = 3;
+					} else {
+						which_panel = 0;
+					}
+				}
+				cube_panels[start+which_panel].point_count += 1;
+				points_inside[start+which_panel].push_back(index);
+			}
+			point_count = 0;
+			for (int j = 0; j < 4; j++) {
+				point_count += cube_panels[start+j].point_count;
+			}
+			if (point_count != cube_panels[i].point_count) {
+				std::cout << i << " " << point_count << " " << cube_panels[i].point_count << std::endl;
+				throw std::runtime_error("Error with point assignment in cubed sphere tree construction");
+			}
+		}
+	}
+
+	double pc[3], p1[3], p2[3], p3[3], p4[3], d1, d2, d3, d4;
+	for (int i = 0; i < cube_panels.size(); i++) {
+		// compute panel radius
+		min_xi = cube_panels[i].min_xi, max_xi = cube_panels[i].max_xi;
+		min_eta = cube_panels[i].min_eta, max_eta = cube_panels[i].max_eta;
+		mid_xi = (min_xi+max_xi)*0.5;
+		mid_eta = (min_eta+max_eta)*0.5;
+		xyz_from_xieta(mid_xi, mid_eta, cube_panels[i].face, pc);
+		xyz_from_xieta(max_xi, min_eta, cube_panels[i].face, p1);
+		xyz_from_xieta(max_xi, max_eta, cube_panels[i].face, p2);
+		xyz_from_xieta(min_xi, max_eta, cube_panels[i].face, p3);
+		xyz_from_xieta(min_xi, min_eta, cube_panels[i].face, p4);
+		d1 = std::acos(pc[0] * p1[0] + pc[1] * p1[1] + pc[2] * p1[2]);
+		d2 = std::acos(pc[0] * p2[0] + pc[1] * p2[1] + pc[2] * p2[2]);
+		d3 = std::acos(pc[0] * p3[0] + pc[1] * p3[1] + pc[2] * p3[2]);
+		d4 = std::acos(pc[0] * p4[0] + pc[1] * p4[1] + pc[2] * p4[2]);
+		cube_panels[i].radius = std::max(std::max(std::max(d1, d2), d3), d4);
+	}
+
+	Kokkos::resize(cubed_sphere_tree, cube_panels.size());
+	Kokkos::resize(leaf_panel_point_ids, cube_panels.size(), run_config.leaf_size);
+	for (int i = 0; i < cube_panels.size(); i++) {
+		for (int j = 0; j < run_config.leaf_size; j++) {
+			leaf_panel_point_ids(i,j) = -1;
+		}
+	}
+	run_config.levels = -1;
+	run_config.panel_count = cube_panels.size();
+	for (int i = 0; i < cube_panels.size(); i++) {
+		cubed_sphere_tree(i) = cube_panels[i];
+		if (cubed_sphere_tree(i).is_leaf) {
+			for (int j = 0; j < cubed_sphere_tree(i).point_count; j++) {
+				leaf_panel_point_ids(i,j) = points_inside[i][j];
+			}
+		}
+		run_config.levels = std::max(run_config.levels, cubed_sphere_tree(i).level);
+	}
+	run_config.cubed_sphere_level_start = (int*) malloc((run_config.levels+1) * sizeof(int));
+	int lev;
+	int target_lev = 0;
+	for (int i = 0; i < cubed_sphere_tree.extent_int(0); i++) {
+		lev = cubed_sphere_tree(i).level;
+		if (lev == target_lev) {
+			run_config.cubed_sphere_level_start[lev] = i;
+			target_lev += 1;
+		}
+	}
+}

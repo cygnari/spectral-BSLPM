@@ -121,6 +121,114 @@ void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, 
 	run_config.fmm_interaction_count = interaction_count;
 }
 
+void dual_tree_traversal_irreg(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, 
+							Kokkos::View<interact_pair*, Kokkos::HostSpace>& interaction_list) {
+	std::vector<interact_pair> temp_interaction_list;
+	int interaction_count = 0;
+
+	std::queue<int> target_squares;
+	std::queue<int> source_squares;
+	// top level interactions
+	int ub = 6;
+	int lb = 0;
+	for (int i = lb; i < ub; i++) {
+		for (int j = lb; j < ub; j++) {
+			target_squares.push(i);
+			source_squares.push(j);
+		}
+	}
+
+	int index_target, index_source;
+	double c1[3], c2[3], dist, separation, xi1, xi2, eta1, eta2;
+
+	while (target_squares.size() > 0) {
+		index_target = target_squares.front();
+		index_source = source_squares.front();
+		
+		target_squares.pop();
+		source_squares.pop();
+		xi1 = 0.5*(cubed_sphere_panels(index_target).min_xi + cubed_sphere_panels(index_target).max_xi);
+		xi2 = 0.5*(cubed_sphere_panels(index_source).min_xi + cubed_sphere_panels(index_source).max_xi);
+		eta1 = 0.5*(cubed_sphere_panels(index_target).min_eta + cubed_sphere_panels(index_target).max_eta);
+		eta2 = 0.5*(cubed_sphere_panels(index_source).min_eta + cubed_sphere_panels(index_source).max_eta);
+		xyz_from_xieta(xi1, eta1, cubed_sphere_panels(index_target).face, c1);
+		xyz_from_xieta(xi2, eta2, cubed_sphere_panels(index_source).face, c2);
+		dist = gcdist(c1, c2);
+		separation = 100;
+		if (dist > 1e-16) {
+			separation = (cubed_sphere_panels(index_target).radius + cubed_sphere_panels(index_source).radius) / dist;
+		}
+		if (separation < run_config.fmm_theta) {
+			// well separated
+			interact_pair new_interact = {index_target, index_source, 0};
+			if (cubed_sphere_panels(index_target).level < run_config.levels - 1) {
+				new_interact.interact_type += 2;
+			} 
+			if (cubed_sphere_panels(index_source).level < run_config.levels - 1) {
+				new_interact.interact_type += 1;
+			}
+			temp_interaction_list.push_back(new_interact);
+			interaction_count += 1;
+		} else {
+			// not well separated, split up panel at higher level, preferentially split target
+			if (cubed_sphere_panels(index_target).is_leaf and cubed_sphere_panels(index_source).is_leaf) {
+				// both are leaf panels
+				interact_pair new_interact {index_target, index_source, 0};
+				temp_interaction_list.push_back(new_interact);
+				interaction_count += 1;
+			} else if (cubed_sphere_panels(index_target).is_leaf) {
+				// target is leaf, break up source
+				target_squares.push(index_target);
+				target_squares.push(index_target);
+				target_squares.push(index_target);
+				target_squares.push(index_target);
+				source_squares.push(cubed_sphere_panels(index_source).child1);
+				source_squares.push(cubed_sphere_panels(index_source).child2);
+				source_squares.push(cubed_sphere_panels(index_source).child3);
+				source_squares.push(cubed_sphere_panels(index_source).child4);
+			} else if (cubed_sphere_panels(index_source).is_leaf) {
+				source_squares.push(index_source);
+				source_squares.push(index_source);
+				source_squares.push(index_source);
+				source_squares.push(index_source);
+				target_squares.push(cubed_sphere_panels(index_target).child1);
+				target_squares.push(cubed_sphere_panels(index_target).child2);
+				target_squares.push(cubed_sphere_panels(index_target).child3);
+				target_squares.push(cubed_sphere_panels(index_target).child4);
+			} else {
+				// neither is leaf
+				if (cubed_sphere_panels(index_target).level <= cubed_sphere_panels(index_source).level) {
+					// refine target
+					source_squares.push(index_source);
+					source_squares.push(index_source);
+					source_squares.push(index_source);
+					source_squares.push(index_source);
+					target_squares.push(cubed_sphere_panels(index_target).child1);
+					target_squares.push(cubed_sphere_panels(index_target).child2);
+					target_squares.push(cubed_sphere_panels(index_target).child3);
+					target_squares.push(cubed_sphere_panels(index_target).child4);
+				} else {
+					// refine source
+					target_squares.push(index_target);
+					target_squares.push(index_target);
+					target_squares.push(index_target);
+					target_squares.push(index_target);
+					source_squares.push(cubed_sphere_panels(index_source).child1);
+					source_squares.push(cubed_sphere_panels(index_source).child2);
+					source_squares.push(cubed_sphere_panels(index_source).child3);
+					source_squares.push(cubed_sphere_panels(index_source).child4);
+				}
+			}
+		}
+	}	
+
+	resize(interaction_list, interaction_count);
+	for (int i = 0; i < interaction_count; i++) {
+		interaction_list(i) = temp_interaction_list[i];
+	}
+	run_config.fmm_interaction_count = interaction_count;
+}
+
 void upward_pass(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals, 
 					Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& area,
 					Kokkos::View<double**, Kokkos::LayoutRight>& pots, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_pots) {
@@ -174,6 +282,31 @@ void downward_pass_3(const RunConfig& run_config, Kokkos::View<double**, Kokkos:
 	Kokkos::fence();
 }
 
+void upward_pass_ll(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<CubedSpherePanel*>& cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& area,
+					Kokkos::View<double**, Kokkos::LayoutRight>& pots, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_pots, Kokkos::View<int**, Kokkos::LayoutRight>& leaf_panel_points) {
+	Kokkos::parallel_for(run_config.panel_count, base_pots_ll(xcos, ycos, zcos, area, pots, proxy_source_pots, cubed_sphere_panels, leaf_panel_points, run_config.interp_degree));
+	int ub = run_config.panel_count;
+	int lb;
+	for (int i = run_config.levels; i > 0; i--) {
+		lb = run_config.cubed_sphere_level_start[i];
+		Kokkos::parallel_for(Kokkos::RangePolicy(lb, ub), child_to_parent_ll(proxy_source_pots, cubed_sphere_panels, run_config.interp_degree));
+		ub = lb;
+	}
+}
 
+void downward_pass_3_ll(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_1, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_2, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_3,  
+					Kokkos::View<double**, Kokkos::LayoutRight>& sols_1, Kokkos::View<double**, Kokkos::LayoutRight>& sols_2, Kokkos::View<double**, Kokkos::LayoutRight>& sols_3, Kokkos::View<int**, Kokkos::LayoutRight> leaf_panel_points) {
+	int lb = 0;
+	int ub;
+	for (int i = 0; i < run_config.levels; i++) {
+		ub = run_config.cubed_sphere_level_start[i+1];
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {lb, 0}, {ub, 4}), parent_to_child_3_ll(proxy_target_pots_1, proxy_target_pots_2, proxy_target_pots_3, cubed_sphere_panels, run_config.interp_degree));
+		lb = ub;
+	}
+	Kokkos::parallel_for(run_config.panel_count, child_panel_interp_3_ll(xcos, ycos, zcos, proxy_target_pots_1, proxy_target_pots_2, proxy_target_pots_3, sols_1, sols_2, sols_3, cubed_sphere_panels, leaf_panel_points, run_config.interp_degree));
+}
 
 

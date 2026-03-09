@@ -25,13 +25,14 @@ struct CubedSpherePanel {
 	double max_eta;
 	double radius;
 	double area;
+	int point_count;
 };
 
 void cubed_sphere_midpoints(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& xcos, 
 							Kokkos::View<double*, Kokkos::HostSpace>& ycos, Kokkos::View<double*, 
 							Kokkos::HostSpace>& zcos, Kokkos::View<double*, Kokkos::HostSpace>& area);
 
-void cubed_sphere_panels_init(const RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels);
+void cubed_sphere_panels_init(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels);
 
 void cube_sphere_spec_points(const RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, 
 							Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& interp_vals, 
@@ -83,5 +84,8 @@ template <class LayoutType> void vec_2d_to_1d(const RunConfig& run_config, Kokko
 	}
 	Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {vec.extent_int(0), vec.extent_int(1)}), v_2d_to_1d<LayoutType>(vec_1d, vec, two_d_to_1d, add));
 }
+
+void initialize_cube_sphere_irreg_points(RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos,
+											Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_tree, Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& leaf_panel_point_ids);
 
 #endif

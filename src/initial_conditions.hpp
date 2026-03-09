@@ -35,6 +35,8 @@ void swe_initialize(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area, 
 					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo);
 
-// void swe_initialize_topo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo);
+void swe_initialize_ll(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vor, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& div, 
+						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo);
 
 #endif

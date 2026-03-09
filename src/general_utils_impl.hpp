@@ -2,6 +2,7 @@
 #define H_GENERAL_UTIL_IMPL_H
 
 #include "Kokkos_Core.hpp"
+#include <iostream>
 
 KOKKOS_INLINE_FUNCTION
 double sphere_tri_area_device(const double* p1, const double* p2, const double* p3) {
@@ -152,6 +153,29 @@ struct zero_out_1 {
 	}
 };
 
+struct zero_out_2 {
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vec;
+
+	zero_out_2(Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vec_) : vec(vec_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j) const {
+		vec(i,j) = 0;
+	}
+};
+
+struct fill_val {
+	Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace> vec;
+	int val;
+
+	fill_val(Kokkos::View<int**, Kokkos::LayoutRight, Kokkos::HostSpace>& vec_, int val_) : vec(vec_), val(val_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j) const {
+		vec(i,j) = val;
+	}
+};
+
 KOKKOS_INLINE_FUNCTION
 void project_to_sphere(double& x, double& y, double& z) {
 	double pointnorm = Kokkos::sqrt(x*x+y*y+z*z);
@@ -217,6 +241,32 @@ void latlon_to_xyz(const double lat, const double lon, double& x, double& y, dou
 	x = Kokkos::cos(lat)*Kokkos::cos(lon);
 	y = Kokkos::cos(lat) * Kokkos::sin(lon);
 }
+
+struct latlon_point {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> xcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> ycos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> zcos;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> area;
+	double grid_dx;
+
+	latlon_point(Kokkos::View<double*, Kokkos::HostSpace>& lats_, Kokkos::View<double*, Kokkos::HostSpace>& lons_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& xcos_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& ycos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& area_, 
+					double grid_dx_) : lats(lats_), lons(lons_), xcos(xcos_), ycos(ycos_), zcos(zcos_), area(area_), grid_dx(grid_dx_) {}
+
+	void operator()(const int i, const int j) const {
+		double lon = lons(j) * M_PI / 180.0;
+		double lat = lats(i) * M_PI / 180.0;
+		double rad_dx = grid_dx*M_PI/180.0;
+		xcos(i,j) = std::cos(lat) * std::cos(lon);
+		ycos(i,j) = std::cos(lat) * std::sin(lon);
+		zcos(i,j) = std::sin(lat);
+		double lat1 = std::min(M_PI/2.0, lat + 0.5*rad_dx);
+		double lat2 = std::max(-M_PI/2.0, lat - 0.5*rad_dx);
+		area(i,j) = (std::sin(lat1) - std::sin(lat2))*rad_dx;
+	}
+};
 
 struct filter_vals {
 	Kokkos::View<double**, Kokkos::LayoutRight> vals;

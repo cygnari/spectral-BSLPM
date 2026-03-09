@@ -610,7 +610,7 @@ void single_panel_curl_rad_comp_fd(double* curl_rad_vals, double* func_vals_xi, 
 			C = Kokkos::sqrt(1+X*X);
 			D = Kokkos::sqrt(1+Y*Y);
 			delta = 1+X*X+Y*Y;
-			curl_vals[index] = Kokkos::sqrt(delta)* (X*Y/(C*D)*(eta_derivs_eta[index]/D-xi_derivs_xi[index]/C)-eta_derivs_xi[index]/D+xi_derivs_eta[index]/C);
+			curl_vals[index] = -Kokkos::sqrt(delta)* (X*Y/(C*D)*(eta_derivs_eta[index]/D-xi_derivs_xi[index]/C)-eta_derivs_xi[index]/D+xi_derivs_eta[index]/C);
 			index += 1;
 		}
 	}

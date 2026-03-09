@@ -163,7 +163,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 		}
 	}
 
-	int index;
+	int index = 0;
 	for (int i = 0; i < interp_deg+1; i++) {
 		for (int j = 0; j < interp_deg+1; j++) {
 			index = i * (interp_deg+1) + j;

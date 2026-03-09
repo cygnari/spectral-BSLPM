@@ -106,7 +106,29 @@ void apply_topography_2(const RunConfig& run_config, Kokkos::View<double**, Kokk
 	if (run_config.topo_type == "cone") {
 		Kokkos::parallel_for(run_config.active_panel_count, cone_mountain_2(xcos, ycos, zcos, disp_x, disp_y, disp_z, height, effective_height));
 	} 
-	// else {
-	// 	// effective_height = height;
-	// }
+}
+
+struct cone_mountain_ll {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> topo;
+
+	cone_mountain_ll(Kokkos::View<double*, Kokkos::HostSpace>& lats_, Kokkos::View<double*, Kokkos::HostSpace>& lons_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo_) :
+						lats(lats_), lons(lons_), topo(topo_) {}
+
+	void operator()(const int i, const int j) const {
+		double lambdac = 0.5*M_PI;
+		double thetac = M_PI/6.0;
+		double height0 = 2000.0 / 6371000.0; // 2000 meters normalized by Earth radius
+		double r2 = (lons(j) - lambdac)*(lons(j) - lambdac) + (lats(i) - thetac)*(lats(i) - thetac);
+		topo(i,j) = height0 * Kokkos::exp(-16.0*r2);
+	}
+};
+
+void apply_topography_host_ll(const RunConfig& run_config, Kokkos::View<double*, Kokkos::HostSpace>& lats, Kokkos::View<double*, Kokkos::HostSpace>& lons, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo) {
+	if (run_config.topo_type == "cone") {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), cone_mountain_ll(lats, lons, topo));
+	} else {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {topo.extent_int(0), topo.extent_int(1)}), zero_out_2(topo));
+	}
 }

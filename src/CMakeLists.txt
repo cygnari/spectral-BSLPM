@@ -17,6 +17,7 @@ add_library(specBSLPM
     mpi_utils.cpp
     swe_time_step.cpp
     swe_time_step_2.cpp
+    swe_time_step_ll.cpp
     topography.cpp)
 
 target_link_libraries(specBSLPM PUBLIC MPI::MPI_C LAPACK::LAPACK Kokkos::kokkos KokkosKernels::kokkoskernels netCDF::netcdf)
@@ -60,5 +61,6 @@ install(FILES
     swe_time_step.hpp
     swe_time_step_2.hpp
     swe_time_step_2_impl.hpp
+    swe_time_step_ll.hpp
     topography.hpp
     DESTINATION ${PROJECT_SOURCE_DIR}/include)
