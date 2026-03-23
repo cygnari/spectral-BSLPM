@@ -12,6 +12,7 @@ add_library(specBSLPM
     general_utils.cpp
     initial_conditions.cpp
     initialize_cubed_sphere.cpp
+    initialize_octo_sphere.cpp
     interp_funcs.cpp
     io_utils.cpp
     mpi_utils.cpp
@@ -54,6 +55,7 @@ install(FILES
     general_utils_impl.hpp
     initial_conditions.hpp
     initialize_cubed_sphere.hpp
+    initialize_octo_sphere.hpp
     interp_funcs.hpp
     io_utils.hpp
     mpi_utils.hpp

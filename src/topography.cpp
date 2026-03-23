@@ -120,8 +120,13 @@ struct cone_mountain_ll {
 		double lambdac = 0.5*M_PI;
 		double thetac = M_PI/6.0;
 		double height0 = 2000.0 / 6371000.0; // 2000 meters normalized by Earth radius
-		double r2 = (lons(j) - lambdac)*(lons(j) - lambdac) + (lats(i) - thetac)*(lats(i) - thetac);
-		topo(i,j) = height0 * Kokkos::exp(-16.0*r2);
+		double radius = Kokkos::numbers::pi / 9.0;
+		double lon_r = lons(j) * M_PI / 180.0;
+		double lat_r = lats(i) * M_PI / 180.0;
+		// double r2 = (lon_r - lambdac)*(lon_r - lambdac) + (lat_r - thetac)*(lat_r - thetac);
+		double r = std::sqrt(std::fmin((lon_r-lambdac)*(lon_r-lambdac) + (lat_r-thetac)*(lat_r-thetac), radius*radius));
+		// topo(i,j) = height0 * Kokkos::exp(-16.0*r2);
+		topo(i,j) = height0 * (1.0 - r / radius);
 	}
 };
 

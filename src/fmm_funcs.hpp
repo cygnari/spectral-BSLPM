@@ -4,6 +4,7 @@
 #include <Kokkos_Core.hpp>
 
 #include "initialize_cubed_sphere.hpp"
+#include "initialize_octo_sphere.hpp"
 #include "run_config.hpp"
 
 struct interact_pair {
@@ -16,6 +17,9 @@ void dual_tree_traversal(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, 
 							Kokkos::View<interact_pair*, Kokkos::HostSpace>& interaction_list);
 
 void dual_tree_traversal_irreg(RunConfig& run_config, Kokkos::View<CubedSpherePanel*, Kokkos::HostSpace>& cubed_sphere_panels, 
+							Kokkos::View<interact_pair*, Kokkos::HostSpace>& interaction_list);
+
+void octo_tree_traversal(RunConfig& run_config, Kokkos::View<OctoSpherePanel*, Kokkos::HostSpace>& octo_sphere_panels, 
 							Kokkos::View<interact_pair*, Kokkos::HostSpace>& interaction_list);
 
 void upward_pass(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& interp_vals, 
@@ -37,6 +41,15 @@ void upward_pass_ll(const RunConfig& run_config, Kokkos::View<double**, Kokkos::
 
 void downward_pass_3_ll(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
 					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<CubedSpherePanel*> cubed_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_1, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_2, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_3,  
+					Kokkos::View<double**, Kokkos::LayoutRight>& sols_1, Kokkos::View<double**, Kokkos::LayoutRight>& sols_2, Kokkos::View<double**, Kokkos::LayoutRight>& sols_3, Kokkos::View<int**, Kokkos::LayoutRight> leaf_panel_points);
+
+void upward_pass_octo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<OctoSpherePanel*>& octo_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& area,
+					Kokkos::View<double**, Kokkos::LayoutRight>& pots, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_pots, Kokkos::View<int**, Kokkos::LayoutRight>& leaf_panel_points);
+
+void downward_pass_3_octo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<OctoSpherePanel*> octo_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_1, 
 					Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_2, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_3,  
 					Kokkos::View<double**, Kokkos::LayoutRight>& sols_1, Kokkos::View<double**, Kokkos::LayoutRight>& sols_2, Kokkos::View<double**, Kokkos::LayoutRight>& sols_3, Kokkos::View<int**, Kokkos::LayoutRight> leaf_panel_points);
 

@@ -429,7 +429,7 @@ struct swe_test_case_2 {
 			vors(i,j) = 2 * u0 * sin(lat);
 			divs(i,j) = 0.0;
 			// height(i,j) = 2.94e4 / (6371000.0*6371000.0) - (2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
-			height(i,j) = 2940.0 / 63710000.0 - 1.0/(9.81/6371000.0)*(2.0*M_PI*M_PI/(6.0*86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+			height(i,j) = 2940.0 / (9.81*63710000.0) - 1.0/(9.81/6371000.0)*(2.0*M_PI/86400.0*u0 + 0.5 * u0 * u0) * sin(lat) * sin(lat);
 		}
 	}
 };
@@ -452,7 +452,7 @@ struct swe_test_case_2_ll {
 		double slat = std::sin(lat);
 		vors(i,j) = 2.0*u0*slat;
 		divs(i,j) = 0.0;
-		height(i,j) = 2940.0 / 6371000.0 - 1.0/(9.81*6371000.0)*(2.0*M_PI*u0/86400.0 + 0.5*u0*u0)*slat*slat;
+		height(i,j) = 29400.0 / (9.81*6371000.0) - 1.0/(9.81/6371000.0)*(2.0*M_PI*u0/86400.0 + 0.5*u0*u0)*slat*slat;
 	}
 };
 
@@ -479,6 +479,107 @@ struct swe_test_case_5 {
 			vors(i,j) = 2 * u0 * sin(lat);
 			divs(i,j) = 0.0;
 			height(i,j) = 5960.0 / 6371000.0 - 1.0/(9.81/6371000.0)*(u0*M_PI*M_PI/(86400.0*86400.0) + 0.5 * u0 * u0) * sin(lat) * sin(lat);
+		}
+	}
+};
+
+struct swe_test_case_5_ll {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_test_case_5_ll(Kokkos::View<double*, Kokkos::HostSpace> lats_, Kokkos::View<double*, Kokkos::HostSpace> lons_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : lats(lats_), lons(lons_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i, const int j) const {
+		// double lat, lon;
+		double lat = lats(i)*M_PI/180.0;
+		double u0 = 20.0/6371000.0; // 20 m/s
+		double slat = std::sin(lat);
+		vors(i,j) = 2.0*u0*slat;
+		divs(i,j) = 0.0;
+		height(i,j) = 5960.0 / (6371000.0) - 1.0/(9.81/6371000.0)*(2.0*M_PI*u0/86400.0 + 0.5*u0*u0)*slat*slat;
+	}
+};
+
+struct swe_galewsky {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+	double omega;
+
+	swe_galewsky(Kokkos::View<double*, Kokkos::HostSpace> lats_, Kokkos::View<double*, Kokkos::HostSpace> lons_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_, double omega_) : 
+					lats(lats_), lons(lons_), vors(vors_), divs(divs_), height(height_), omega(omega_) {}
+
+	void operator()(const int j) const {
+		// initialize on a constant line of longitude
+		int imax = lats.extent_int(0);
+		double lat, lon;
+		double h0 = 10000.0;
+		double u0 = 80.0 / 6371000.0;
+		double phi0 = M_PI / 7.0;
+		double phi1 = 0.5*M_PI - phi0;
+		double phi2 = Kokkos::numbers::pi / 4.0;
+		double en = Kokkos::exp(-4.0/((phi1-phi0)*(phi1-phi0)));
+		double comp, ecomp, u, ht, dh, lat_r, int_val, lon_r;
+		double dx = lats(1) - lats(0);
+		double dx_r = dx * M_PI / 180.0;
+		double hhat = 120.0;
+		double alpha = 3.0;
+		double beta = 15.0;
+		for (int i = 0 ; i < imax; i++) {
+			lat = lats(i);
+			lat_r = M_PI*lat/180.0;
+			divs(i,j) = 0;
+			height(i,j) = 0;
+			if (lat_r < phi0) {
+				vors(i,j) = 0;
+			} else if (lat_r > phi1) {
+				vors(i,j) = 0;
+			} else {
+				comp = 1.0/((lat_r-phi0)*(lat_r-phi1));
+				ecomp = Kokkos::exp(comp);
+				vors(i,j) = u0 / (Kokkos::cos(lat_r)*en) * ecomp * (Kokkos::sin(lat_r) + Kokkos::cos(lat_r) * comp * (1.0/(lat_r - phi1) + 1.0/(lat_r-phi0)));
+			}
+		}
+		ht = 0;
+		int_val = 0;
+		for (int i = 0; i < imax; i++) {
+			lat = lats(i);
+			lat_r = M_PI*lat/180.0;
+			if (lat_r > phi0+0.5*dx_r) {
+				if (lat_r > phi1) {
+					height(i,j) = height(i-1,j);
+				} else {
+					comp = 1.0/((lat_r-phi0)*(lat_r-phi1));
+					u = u0 / en * Kokkos::exp(comp);
+					int_val -= u * (2*omega*Kokkos::sin(lat_r - 0.5*dx_r) + Kokkos::tan(lat_r - 0.5*dx_r)*u) * dx_r;
+					height(i,j) = int_val / (9.81/6371000.0);
+					ht += height(i,j);
+				}	
+			}
+		}
+		ht /= imax;
+		dh = h0 - 6371000.0*ht;
+		for (int i = 0; i < imax; i++) {
+			height(i,j) += dh / 6371000.0;
+		}
+		lon = lons(j);
+		lon_r = lon * M_PI / 180.0;
+		if (lon_r > Kokkos::numbers::pi) {
+			lon_r -= 2.0*Kokkos::numbers::pi;
+		}
+		for (int i = 0; i < imax; i++) {
+			lat = lats(i);
+			lat_r = lat * M_PI / 180.0;
+			height(i,j) += hhat / 6371000.0 * Kokkos::cos(lat_r) * Kokkos::exp(-alpha*alpha*lon_r*lon_r) * Kokkos::exp(-beta*beta*(lat_r-phi2)*(lat_r-phi2));
 		}
 	}
 };
@@ -512,6 +613,83 @@ struct swe_gau_div {
 			vors(i,j) = 0.0;
 			height(i,j) = 1.0;
 		}
+	}
+};
+
+struct swe_gau_div_ll {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_gau_div_ll(Kokkos::View<double*, Kokkos::HostSpace> lats_, Kokkos::View<double*, Kokkos::HostSpace> lons_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : lats(lats_), lons(lons_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i, const int j) const {
+		double center_lat = 0;
+		double center_lon = M_PI / 2.0;
+		double cx, cy, cz, x, y, z;
+		xyz_from_lonlat(cx, cy, cz, center_lon, center_lat);
+		xyz_from_lonlat(x, y, z, lons(j)*M_PI/180.0, lats(i)*M_PI/180.0);
+		double dx, dy, dz, d2;
+		dx = x - cx;
+		dy = y - cy;
+		dz = z - cz;
+		d2 = dx*dx + dy*dy + dz*dz;
+		divs(i,j) = 12.566370614359172 * exp(-16.0 * d2) / 86400.0; // constant is 4pi
+		vors(i,j) = 0;
+		height(i,j) = 0;
+	}
+};
+
+struct swe_gau_vor_ll {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_gau_vor_ll(Kokkos::View<double*, Kokkos::HostSpace> lats_, Kokkos::View<double*, Kokkos::HostSpace> lons_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : lats(lats_), lons(lons_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i, const int j) const {
+		double center_lon = M_PI;
+		double center_lat = 0;
+		double cx, cy, cz, x, y, z;
+		xyz_from_lonlat(cx, cy, cz, center_lon, center_lat);
+		xyz_from_lonlat(x, y, z, lons(j)*M_PI/180.0, lats(i)*M_PI/180.0);
+		double dx, dy, dz, d2;
+		dx = x - cx;
+		dy = y - cy;
+		dz = z - cz;
+		d2 = dx*dx + dy*dy + dz*dz;
+		vors(i,j) = 12.566370614359172 * exp(-16.0 * d2) / 86400.0; // constant is 4pi
+		divs(i,j) = 0;
+		height(i,j) = 0;
+	}
+};
+
+struct swe_rh4 {
+	Kokkos::View<double*, Kokkos::HostSpace> lats;
+	Kokkos::View<double*, Kokkos::HostSpace> lons;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> vors;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> divs;
+	Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> height;
+
+	swe_rh4(Kokkos::View<double*, Kokkos::HostSpace> lats_, Kokkos::View<double*, Kokkos::HostSpace> lons_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& vors_, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& divs_, 
+					Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height_) : lats(lats_), lons(lons_), vors(vors_), divs(divs_), height(height_) {}
+
+	void operator()(const int i, const int j) const {
+		double lat = lats(i) * M_PI/180.0;
+		double lon = lons(j) * M_PI/180.0;
+
+		vors(i,j) = 0.897597901025655211*Kokkos::sin(lat) + 30.0*Kokkos::sin(lat) * Kokkos::pow(Kokkos::cos(lat), 4) * Kokkos::cos(4*lon);
+		divs(i,j) = 0;
+		height(i,j) = 0;
 	}
 };
 
@@ -553,6 +731,16 @@ void swe_initialize_ll(const RunConfig& run_config, Kokkos::View<double*, Kokkos
 						Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& height, Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& topo) {
 	if (run_config.initial_condition == "tc2") {
 		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), swe_test_case_2_ll(lats, lons, vor, div, height));
+	} else if (run_config.initial_condition == "tc5") {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), swe_test_case_5_ll(lats, lons, vor, div, height));
+	} else if (run_config.initial_condition == "gd") {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), swe_gau_div_ll(lats, lons, vor, div, height));
+	} else if (run_config.initial_condition == "gv") {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), swe_gau_vor_ll(lats, lons, vor, div, height));
+	} else if (run_config.initial_condition == "rh4") {
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultHostExecutionSpace(), {0, 0}, {run_config.lat_count, run_config.lon_count}), swe_rh4(lats, lons, vor, div, height));
+	} else if (run_config.initial_condition == "galewsky") {
+		Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.lon_count), swe_galewsky(lats, lons, vor, div, height, run_config.omega));
 	}
 	Kokkos::parallel_for(Kokkos::RangePolicy(Kokkos::DefaultHostExecutionSpace(), 0, run_config.lat_count), apply_topo(height, topo));
 }

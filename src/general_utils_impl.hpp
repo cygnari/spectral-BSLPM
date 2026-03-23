@@ -236,6 +236,13 @@ void xyz_to_latlon(double& lat, double& lon, const double x, const double y, con
 }
 
 KOKKOS_INLINE_FUNCTION
+void xyz_from_lonlat(double& x_comp, double& y_comp, double& z_comp, const double lon, const double lat) {
+	x_comp = Kokkos::cos(lat) * Kokkos::cos(lon);
+	y_comp = Kokkos::cos(lat) * Kokkos::sin(lon);
+	z_comp = Kokkos::sin(lat);
+}
+
+KOKKOS_INLINE_FUNCTION
 void latlon_to_xyz(const double lat, const double lon, double& x, double& y, double& z) {
 	z = Kokkos::sin(lat);
 	x = Kokkos::cos(lat)*Kokkos::cos(lon);
@@ -281,6 +288,22 @@ struct filter_vals {
 			if (Kokkos::abs(vals(i,j)) < thresh) {
 				vals(i,j) = 0.0;
 			}
+		}
+	}
+};
+
+struct clamp_vals {
+	Kokkos::View<double**, Kokkos::LayoutRight> vals;
+	double thresh;
+
+	clamp_vals(Kokkos::View<double**, Kokkos::LayoutRight>& vals_, double thresh_) : vals(vals_), thresh(thresh_) {}
+
+	KOKKOS_INLINE_FUNCTION
+	void operator()(const int i, const int j) const {
+		if (vals(i,j) < -thresh) {
+			vals(i,j) = -thresh;
+		} else if (vals(i,j) > thresh) {
+			vals(i,j) = thresh;
 		}
 	}
 };

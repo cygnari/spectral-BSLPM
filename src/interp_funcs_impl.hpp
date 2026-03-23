@@ -19,16 +19,16 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	double cheb_xi[11], cheb_eta[11], bli_weights[11];
 	double xi_f_vals[11], eta_f_vals[11];
 
-	if (xi < min_xi - 1e-16) {
+	if (xi < min_xi - 1e-15) {
 		Kokkos::abort("xi less than panel min xi, interp vals bli");
 	} 
-	if (xi > max_xi + 1e-16) {
+	if (xi > max_xi + 1e-15) {
 		Kokkos::abort("xi greater than panel max xi, interp vals bli");
 	}
-	if (eta < min_eta - 1e-16) {
+	if (eta < min_eta - 1e-15) {
 		Kokkos::abort("eta less than panel min eta, interp vals bli");
 	} 
-	if (eta > max_eta + 1e-16) {
+	if (eta > max_eta + 1e-15) {
 		Kokkos::abort("eta greater than panel max eta, interp vals bli");
 	}
 
@@ -57,7 +57,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	bool found_xi_point = false;
 	double denom_xi, bliweight;
 	for (int i = 0; i < interp_deg+1; i++) {
-		if (Kokkos::abs(xi - cheb_xi[i]) < 1e-16) {
+		if (Kokkos::abs(xi - cheb_xi[i]) < 1e-15) {
 			found_xi_point = true;
 			for (int j = 0; j < interp_deg+1; j++) {
 				xi_f_vals[j] = 0;
@@ -81,7 +81,7 @@ void interp_vals_bli(double* basis_vals, double xi, double eta, double min_xi, d
 	bool found_eta_point = false;
 	double denom_eta;
 	for (int i = 0; i < interp_deg+1; i++) {
-		if (Kokkos::abs(eta - cheb_eta[i]) < 1e-16) {
+		if (Kokkos::abs(eta - cheb_eta[i]) < 1e-15) {
 			found_eta_point = true;
 			for (int j = 0; j < interp_deg+1; j++) {
 				eta_f_vals[j] = 0;

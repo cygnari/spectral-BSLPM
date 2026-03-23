@@ -60,7 +60,7 @@ struct bve_vel_panel_interaction {
                 project_to_sphere(x_s, y_s, z_s);
                 dp = xyz_t[0] * x_s + xyz_t[1] * y_s + xyz_t[2] * z_s;
                 // if (dp < 1.0 - 1e-15) { // constant is -1/(4pi)
-                gfcomp = 0.07957747154594767 / (1.0 - dp + kernel_eps) * source_vals(source_panel, k);
+                gfcomp = -0.07957747154594767 / (1.0 - dp + kernel_eps) * source_vals(source_panel, k);
                 Kokkos::atomic_add(&target_pots_1(target_panel, j), gfcomp*(xyz_t[1]*z_s - xyz_t[2]*y_s));
                 Kokkos::atomic_add(&target_pots_2(target_panel, j), gfcomp*(xyz_t[2]*x_s - xyz_t[0]*z_s));
                 Kokkos::atomic_add(&target_pots_3(target_panel, j), gfcomp*(xyz_t[0]*y_s - xyz_t[1]*x_s));

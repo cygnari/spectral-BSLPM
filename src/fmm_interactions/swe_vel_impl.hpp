@@ -6,6 +6,7 @@
 #include "run_config.hpp"
 #include "fmm_funcs.hpp"
 #include "initialize_cubed_sphere.hpp"
+#include "initialize_octo_sphere.hpp"
 #include "general_utils_impl.hpp"
 
 struct swe_vel_panel_interaction {
@@ -152,6 +153,9 @@ struct swe_vel_panel_interaction_ll {
     Kokkos::View<double**, Kokkos::LayoutRight> target_pots_1;
     Kokkos::View<double**, Kokkos::LayoutRight> target_pots_2;
     Kokkos::View<double**, Kokkos::LayoutRight> target_pots_3;
+    Kokkos::View<double**, Kokkos::LayoutRight> vel_x;
+    Kokkos::View<double**, Kokkos::LayoutRight> vel_y;
+    Kokkos::View<double**, Kokkos::LayoutRight> vel_z;
     Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_vors;
     Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_divs;
     Kokkos::View<double**, Kokkos::LayoutRight> vors;
@@ -165,10 +169,11 @@ struct swe_vel_panel_interaction_ll {
 
     swe_vel_panel_interaction_ll(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, 
                                 Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_1_, Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_2_, 
-                                Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_3_, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_vors_, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_divs_,
+                                Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_3_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_vors_, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_divs_,
                                 Kokkos::View<double**, Kokkos::LayoutRight>& vors_, Kokkos::View<double**, Kokkos::LayoutRight>& divs_, Kokkos::View<double**, Kokkos::LayoutRight>& area_, Kokkos::View<int**, Kokkos::LayoutRight>& leaf_panel_points_, 
                                 Kokkos::View<CubedSpherePanel*> cubed_sphere_panels_, Kokkos::View<interact_pair*>& interaction_list_, double kernel_eps_, int degree_) : xcos(xcos_), ycos(ycos_), zcos(zcos_), 
-                                target_pots_1(target_pots_1_), target_pots_2(target_pots_2_), target_pots_3(target_pots_3_), proxy_source_vors(proxy_source_vors_), proxy_source_divs(proxy_source_divs_), vors(vors_), divs(divs_), area(area_), leaf_panel_points(leaf_panel_points_), 
+                                target_pots_1(target_pots_1_), target_pots_2(target_pots_2_), target_pots_3(target_pots_3_), vel_x(vel_x_), vel_y(vel_y_), vel_z(vel_z_), proxy_source_vors(proxy_source_vors_), proxy_source_divs(proxy_source_divs_), vors(vors_), divs(divs_), area(area_), leaf_panel_points(leaf_panel_points_), 
                                 cubed_sphere_panels(cubed_sphere_panels_), interaction_list(interaction_list_), kernel_eps(kernel_eps_), degree(degree_) {}
 
     KOKKOS_INLINE_FUNCTION
@@ -176,10 +181,11 @@ struct swe_vel_panel_interaction_ll {
         int target_panel = interaction_list(i).target_panel;
         int source_panel = interaction_list(i).source_panel;
         int target_count, source_count, index, index_i, index_j, lon_count;
+        int i_t = interaction_list(i).interact_type;
         lon_count = xcos.extent_int(1);
         double s_x[484], s_y[484], s_z[484], t_x[484], t_y[484], t_z[484], xyz[3], sv[484], sd[484];
         double xi, eta, min_xi, max_xi, min_eta, max_eta, xi_scale, xi_off, eta_scale, eta_off;
-        if ((interaction_list(i).interact_type == 0) or (interaction_list(i).interact_type == 1)) {
+        if ((i_t== 0) or (i_t == 1)) {
             target_count = cubed_sphere_panels(target_panel).point_count;
             for (int j = 0; j < target_count; j++) {
                 index = leaf_panel_points(target_panel,j);
@@ -211,7 +217,7 @@ struct swe_vel_panel_interaction_ll {
                 }
             }
         }
-        if ((interaction_list(i).interact_type == 0) or (interaction_list(i).interact_type == 2)) {
+        if ((i_t == 0) or (i_t == 2)) {
             source_count = cubed_sphere_panels(source_panel).point_count;
             for (int j = 0; j < source_count; j++) {
                 index = leaf_panel_points(source_panel, j);
@@ -247,11 +253,14 @@ struct swe_vel_panel_interaction_ll {
                 }
             }
         }
-        double x_t, y_t, z_t, x_s, y_s, z_s, dp, gf, gf1, gf2;
+        double x_t, y_t, z_t, x_s, y_s, z_s, dp, gf, gf1, gf2, vx, vy, vz;
         for (int j = 0; j < target_count; j++) {
             x_t = t_x[j];
             y_t = t_y[j];
             z_t = t_z[j];
+            index = leaf_panel_points(target_panel,j);
+            index_i = index / lon_count;
+            index_j = index % lon_count;
             for (int k = 0; k < source_count; k++) {
                 x_s = s_x[k];
                 y_s = s_y[k];
@@ -261,12 +270,164 @@ struct swe_vel_panel_interaction_ll {
                 gf = 0.07957747154594767 / (1.0 - dp + kernel_eps);
                 gf1 = -gf*sv[k];
                 gf2 = gf*sd[k];
-                Kokkos::atomic_add(&target_pots_1(target_panel, j), gf1*(y_t*z_s - z_t*y_s));
-                Kokkos::atomic_add(&target_pots_2(target_panel, j), gf1*(z_t*x_s - x_t*z_s));
-                Kokkos::atomic_add(&target_pots_3(target_panel, j), gf1*(x_t*y_s - y_t*x_s));
-                Kokkos::atomic_add(&target_pots_1(target_panel, j), gf2*(x_s - x_t * dp));
-                Kokkos::atomic_add(&target_pots_2(target_panel, j), gf2*(y_s - y_t * dp));
-                Kokkos::atomic_add(&target_pots_3(target_panel, j), gf2*(z_s - z_t * dp));
+                vx = gf1*(y_t*z_s - z_t*y_s)+gf2*(x_s - x_t * dp);
+                vy = gf1*(z_t*x_s - x_t*z_s)+gf2*(y_s - y_t * dp);
+                vz = gf1*(x_t*y_s - y_t*x_s)+gf2*(z_s - z_t * dp);
+                if ((i_t== 0) or (i_t == 1)) {
+                    Kokkos::atomic_add(&vel_x(index_i, index_j), vx);
+                    Kokkos::atomic_add(&vel_y(index_i, index_j), vy);
+                    Kokkos::atomic_add(&vel_z(index_i, index_j), vz);
+                } else {
+                    Kokkos::atomic_add(&target_pots_1(target_panel,j), vx);
+                    Kokkos::atomic_add(&target_pots_2(target_panel,j), vy);
+                    Kokkos::atomic_add(&target_pots_3(target_panel,j), vz);
+                }
+            }
+        }
+    }
+};
+
+struct swe_vel_panel_interaction_octo {
+    Kokkos::View<double**, Kokkos::LayoutRight> xcos;
+    Kokkos::View<double**, Kokkos::LayoutRight> ycos;
+    Kokkos::View<double**, Kokkos::LayoutRight> zcos;
+    Kokkos::View<double**, Kokkos::LayoutRight> target_pots_1;
+    Kokkos::View<double**, Kokkos::LayoutRight> target_pots_2;
+    Kokkos::View<double**, Kokkos::LayoutRight> target_pots_3;
+    Kokkos::View<double**, Kokkos::LayoutRight> vel_x;
+    Kokkos::View<double**, Kokkos::LayoutRight> vel_y;
+    Kokkos::View<double**, Kokkos::LayoutRight> vel_z;
+    Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_vors;
+    Kokkos::View<double**, Kokkos::LayoutRight> proxy_source_divs;
+    Kokkos::View<double**, Kokkos::LayoutRight> vors;
+    Kokkos::View<double**, Kokkos::LayoutRight> divs;
+    Kokkos::View<double**, Kokkos::LayoutRight> area;
+    Kokkos::View<int**, Kokkos::LayoutRight> leaf_panel_points;
+    Kokkos::View<OctoSpherePanel*> octo_sphere_panels;
+    Kokkos::View<interact_pair*> interaction_list;
+    double kernel_eps;
+    int degree;
+
+    swe_vel_panel_interaction_octo(Kokkos::View<double**, Kokkos::LayoutRight>& xcos_, Kokkos::View<double**, Kokkos::LayoutRight>& ycos_, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& zcos_, Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_1_, Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_2_, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& target_pots_3_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_x_, Kokkos::View<double**, Kokkos::LayoutRight>& vel_y_, 
+                                Kokkos::View<double**, Kokkos::LayoutRight>& vel_z_, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_vors_, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_divs_,
+                                Kokkos::View<double**, Kokkos::LayoutRight>& vors_, Kokkos::View<double**, Kokkos::LayoutRight>& divs_, Kokkos::View<double**, Kokkos::LayoutRight>& area_, Kokkos::View<int**, Kokkos::LayoutRight>& leaf_panel_points_, 
+                                Kokkos::View<OctoSpherePanel*> octo_sphere_panels_, Kokkos::View<interact_pair*>& interaction_list_, double kernel_eps_, int degree_) : xcos(xcos_), ycos(ycos_), zcos(zcos_), 
+                                target_pots_1(target_pots_1_), target_pots_2(target_pots_2_), target_pots_3(target_pots_3_), vel_x(vel_x_), vel_y(vel_y_), vel_z(vel_z_), proxy_source_vors(proxy_source_vors_), proxy_source_divs(proxy_source_divs_), vors(vors_), divs(divs_), area(area_), leaf_panel_points(leaf_panel_points_), 
+                                octo_sphere_panels(octo_sphere_panels_), interaction_list(interaction_list_), kernel_eps(kernel_eps_), degree(degree_) {}
+
+    KOKKOS_INLINE_FUNCTION
+    void operator()(const int i) const {
+        int target_panel = interaction_list(i).target_panel;
+        int source_panel = interaction_list(i).source_panel;
+        int target_count, source_count, index, index_i, index_j, lon_count;
+        int i_t = interaction_list(i).interact_type;
+        lon_count = xcos.extent_int(1);
+        // double s_x[484], s_y[484], s_z[484], t_x[484], t_y[484], t_z[484], xyz[3], sv[484], sd[484];
+        // std::cout << i << std::endl;
+        double s_x[2025], s_y[2025], s_z[2025], t_x[2025], t_y[2025], t_z[2025], xyz[3], sv[2025], sd[2025];
+        // std::cout << i << std::endl;
+        double lat, lon, min_lat, max_lat, min_lon, max_lon, lat_scale, lat_off, lon_scale, lon_off;
+        // std::cout << i << " " << i_t << std::endl;
+        if ((i_t== 0) or (i_t == 1)) {
+            target_count = octo_sphere_panels(target_panel).point_count;
+            for (int j = 0; j < target_count; j++) {
+                index = leaf_panel_points(target_panel,j);
+                index_i = index / lon_count;
+                index_j = index % lon_count;
+                t_x[j] = xcos(index_i,index_j);
+                t_y[j] = ycos(index_i,index_j);
+                t_z[j] = zcos(index_i,index_j);
+            }
+        } else {
+            target_count = (degree+1)*(degree+1);
+            min_lat = octo_sphere_panels(target_panel).min_lat;
+            max_lat = octo_sphere_panels(target_panel).max_lat;
+            min_lon = octo_sphere_panels(target_panel).min_lon;
+            max_lon = octo_sphere_panels(target_panel).max_lon;
+            lat_off = 0.5*(min_lat+max_lat);
+            lat_scale = 0.5*(max_lat-min_lat);
+            lon_off = 0.5*(min_lon+max_lon);
+            lon_scale = 0.5*(max_lon-min_lon);
+            for (int j = 0; j < degree+1; j++) { // xi loop
+                for (int k = 0; k < degree+1; k++) { // eta loop
+                    lat = Kokkos::cos(Kokkos::numbers::pi*j/degree)*lat_scale+lat_off;
+                    lon = Kokkos::cos(Kokkos::numbers::pi*k/degree)*lon_scale+lon_off;
+                    xyz_from_lonlat(xyz[0], xyz[1], xyz[2], lon*Kokkos::numbers::pi/180.0, lat*Kokkos::numbers::pi/180.0);
+                    index = j*(degree+1)+k;
+                    t_x[index]=xyz[0];
+                    t_y[index]=xyz[1];
+                    t_z[index]=xyz[2];
+                }
+            }
+        }
+        if ((i_t == 0) or (i_t == 2)) {
+            source_count = octo_sphere_panels(source_panel).point_count;
+            for (int j = 0; j < source_count; j++) {
+                index = leaf_panel_points(source_panel, j);
+                index_i = index / lon_count;
+                index_j = index % lon_count;
+                s_x[j] = xcos(index_i,index_j);
+                s_y[j] = ycos(index_i,index_j);
+                s_z[j] = zcos(index_i,index_j);
+                sv[j] = vors(index_i,index_j) * area(index_i,index_j);
+                sd[j] = divs(index_i,index_j) * area(index_i,index_j);
+            }
+        } else {
+            source_count = (degree+1)*(degree+1);
+            min_lat = octo_sphere_panels(source_panel).min_lat;
+            max_lat = octo_sphere_panels(source_panel).max_lat;
+            min_lon = octo_sphere_panels(source_panel).min_lon;
+            max_lon = octo_sphere_panels(source_panel).max_lon;
+            lat_off = 0.5*(min_lat+max_lat);
+            lat_scale = 0.5*(max_lat-min_lat);
+            lon_off = 0.5*(min_lon+max_lon);
+            lon_scale = 0.5*(max_lon-min_lon);
+            for (int j = 0; j < degree+1; j++) { // xi loop
+                for (int k = 0; k < degree+1; k++) { // eta loop
+                    lat = Kokkos::cos(Kokkos::numbers::pi*j/degree)*lat_scale+lat_off;
+                    lon = Kokkos::cos(Kokkos::numbers::pi*k/degree)*lon_scale+lon_off;
+                    xyz_from_lonlat(xyz[0], xyz[1], xyz[2], lon*Kokkos::numbers::pi/180.0, lat*Kokkos::numbers::pi/180.0);
+                    index = j*(degree+1)+k;
+                    s_x[index]=xyz[0];
+                    s_y[index]=xyz[1];
+                    s_z[index]=xyz[2];
+                    sv[index] = proxy_source_vors(source_panel,index);
+                    sd[index] = proxy_source_divs(source_panel,index);
+                }
+            }
+        }
+        double x_t, y_t, z_t, x_s, y_s, z_s, dp, gf, gf1, gf2, vx, vy, vz;
+        for (int j = 0; j < target_count; j++) {
+            x_t = t_x[j];
+            y_t = t_y[j];
+            z_t = t_z[j];
+            
+            for (int k = 0; k < source_count; k++) {
+                x_s = s_x[k];
+                y_s = s_y[k];
+                z_s = s_z[k];
+                dp = x_t*x_s + y_t*y_s + z_t*z_s;
+                // constant is -1/(4pi)
+                gf = 0.07957747154594767 / (1.0 - dp + kernel_eps);
+                gf1 = -gf*sv[k];
+                gf2 = -gf*sd[k];
+                vx = gf1*(y_t*z_s - z_t*y_s)+gf2*(x_s - x_t * dp);
+                vy = gf1*(z_t*x_s - x_t*z_s)+gf2*(y_s - y_t * dp);
+                vz = gf1*(x_t*y_s - y_t*x_s)+gf2*(z_s - z_t * dp);
+                if ((i_t== 0) or (i_t == 1)) {
+                    index = leaf_panel_points(target_panel,j);
+                    index_i = index / lon_count;
+                    index_j = index % lon_count;
+                    Kokkos::atomic_add(&vel_x(index_i, index_j), vx);
+                    Kokkos::atomic_add(&vel_y(index_i, index_j), vy);
+                    Kokkos::atomic_add(&vel_z(index_i, index_j), vz);
+                } else {
+                    Kokkos::atomic_add(&target_pots_1(target_panel,j), vx);
+                    Kokkos::atomic_add(&target_pots_2(target_panel,j), vy);
+                    Kokkos::atomic_add(&target_pots_3(target_panel,j), vz);
+                }
             }
         }
     }

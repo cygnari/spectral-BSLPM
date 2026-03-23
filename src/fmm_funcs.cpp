@@ -6,6 +6,7 @@
 #include "run_config.hpp"
 #include "fmm_funcs.hpp"
 #include "initialize_cubed_sphere.hpp"
+#include "initialize_octo_sphere.hpp"
 #include "cubed_sphere_transforms.hpp"
 #include "cubed_sphere_transforms_impl.hpp"
 #include "general_utils.hpp"
@@ -161,10 +162,10 @@ void dual_tree_traversal_irreg(RunConfig& run_config, Kokkos::View<CubedSpherePa
 		if (separation < run_config.fmm_theta) {
 			// well separated
 			interact_pair new_interact = {index_target, index_source, 0};
-			if (cubed_sphere_panels(index_target).level < run_config.levels - 1) {
+			if (cubed_sphere_panels(index_target).level < run_config.levels) {
 				new_interact.interact_type += 2;
 			} 
-			if (cubed_sphere_panels(index_source).level < run_config.levels - 1) {
+			if (cubed_sphere_panels(index_source).level < run_config.levels) {
 				new_interact.interact_type += 1;
 			}
 			temp_interaction_list.push_back(new_interact);
@@ -217,6 +218,114 @@ void dual_tree_traversal_irreg(RunConfig& run_config, Kokkos::View<CubedSpherePa
 					source_squares.push(cubed_sphere_panels(index_source).child2);
 					source_squares.push(cubed_sphere_panels(index_source).child3);
 					source_squares.push(cubed_sphere_panels(index_source).child4);
+				}
+			}
+		}
+	}	
+
+	resize(interaction_list, interaction_count);
+	for (int i = 0; i < interaction_count; i++) {
+		interaction_list(i) = temp_interaction_list[i];
+	}
+	run_config.fmm_interaction_count = interaction_count;
+}
+
+void octo_tree_traversal(RunConfig& run_config, Kokkos::View<OctoSpherePanel*, Kokkos::HostSpace>& octo_sphere_panels, 
+							Kokkos::View<interact_pair*, Kokkos::HostSpace>& interaction_list) {
+	std::vector<interact_pair> temp_interaction_list;
+	int interaction_count = 0;
+
+	std::queue<int> target_squares;
+	std::queue<int> source_squares;
+	// top level interactions
+	int ub = 8;
+	int lb = 0;
+	for (int i = lb; i < ub; i++) {
+		for (int j = lb; j < ub; j++) {
+			target_squares.push(i);
+			source_squares.push(j);
+		}
+	}
+
+	int index_target, index_source;
+	double c1[3], c2[3], dist, separation, lon1, lon2, lat1, lat2;
+
+	while (target_squares.size() > 0) {
+		index_target = target_squares.front();
+		index_source = source_squares.front();
+		
+		target_squares.pop();
+		source_squares.pop();
+		lat1 = 0.5*(octo_sphere_panels(index_target).min_lat + octo_sphere_panels(index_target).max_lat);
+		lat2 = 0.5*(octo_sphere_panels(index_source).min_lat + octo_sphere_panels(index_source).max_lat);
+		lon1 = 0.5*(octo_sphere_panels(index_target).min_lon + octo_sphere_panels(index_target).max_lon);
+		lon2 = 0.5*(octo_sphere_panels(index_source).min_lon + octo_sphere_panels(index_source).max_lon);
+		xyz_from_lonlat(c1[0], c1[1], c1[2], lon1, lat1);
+		xyz_from_lonlat(c2[0], c2[1], c2[2], lon2, lat2);
+		dist = gcdist(c1, c2);
+		separation = 100;
+		if (dist > 1e-16) {
+			separation = (octo_sphere_panels(index_target).radius + octo_sphere_panels(index_source).radius) / dist;
+		}
+		if (separation < run_config.fmm_theta) {
+			// well separated
+			interact_pair new_interact = {index_target, index_source, 0};
+			if (octo_sphere_panels(index_target).level < run_config.levels) {
+				new_interact.interact_type += 2;
+			} 
+			if (octo_sphere_panels(index_source).level < run_config.levels) {
+				// new_interact.interact_type += 1;
+			}
+			temp_interaction_list.push_back(new_interact);
+			interaction_count += 1;
+		} else {
+			// not well separated, split up panel at higher level, preferentially split target
+			if (octo_sphere_panels(index_target).is_leaf and octo_sphere_panels(index_source).is_leaf) {
+				// both are leaf panels
+				interact_pair new_interact {index_target, index_source, 0};
+				temp_interaction_list.push_back(new_interact);
+				interaction_count += 1;
+			} else if (octo_sphere_panels(index_target).is_leaf) {
+				// target is leaf, break up source
+				target_squares.push(index_target);
+				target_squares.push(index_target);
+				target_squares.push(index_target);
+				target_squares.push(index_target);
+				source_squares.push(octo_sphere_panels(index_source).child1);
+				source_squares.push(octo_sphere_panels(index_source).child2);
+				source_squares.push(octo_sphere_panels(index_source).child3);
+				source_squares.push(octo_sphere_panels(index_source).child4);
+			} else if (octo_sphere_panels(index_source).is_leaf) {
+				source_squares.push(index_source);
+				source_squares.push(index_source);
+				source_squares.push(index_source);
+				source_squares.push(index_source);
+				target_squares.push(octo_sphere_panels(index_target).child1);
+				target_squares.push(octo_sphere_panels(index_target).child2);
+				target_squares.push(octo_sphere_panels(index_target).child3);
+				target_squares.push(octo_sphere_panels(index_target).child4);
+			} else {
+				// neither is leaf
+				if (octo_sphere_panels(index_target).level <= octo_sphere_panels(index_source).level) {
+					// refine target
+					source_squares.push(index_source);
+					source_squares.push(index_source);
+					source_squares.push(index_source);
+					source_squares.push(index_source);
+					target_squares.push(octo_sphere_panels(index_target).child1);
+					target_squares.push(octo_sphere_panels(index_target).child2);
+					target_squares.push(octo_sphere_panels(index_target).child3);
+					target_squares.push(octo_sphere_panels(index_target).child4);
+				} else {
+					// refine source
+					target_squares.push(index_target);
+					target_squares.push(index_target);
+					target_squares.push(index_target);
+					target_squares.push(index_target);
+					source_squares.push(octo_sphere_panels(index_source).child1);
+					source_squares.push(octo_sphere_panels(index_source).child2);
+					source_squares.push(octo_sphere_panels(index_source).child3);
+					source_squares.push(octo_sphere_panels(index_source).child4);
 				}
 			}
 		}
@@ -307,6 +416,35 @@ void downward_pass_3_ll(const RunConfig& run_config, Kokkos::View<double**, Kokk
 		lb = ub;
 	}
 	Kokkos::parallel_for(run_config.panel_count, child_panel_interp_3_ll(xcos, ycos, zcos, proxy_target_pots_1, proxy_target_pots_2, proxy_target_pots_3, sols_1, sols_2, sols_3, cubed_sphere_panels, leaf_panel_points, run_config.interp_degree));
+}
+
+void upward_pass_octo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<OctoSpherePanel*>& octo_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& area,
+					Kokkos::View<double**, Kokkos::LayoutRight>& pots, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_source_pots, Kokkos::View<int**, Kokkos::LayoutRight>& leaf_panel_points) {
+	Kokkos::parallel_for(run_config.panel_count, base_pots_octo(xcos, ycos, zcos, area, pots, proxy_source_pots, octo_sphere_panels, leaf_panel_points, run_config.interp_degree));
+	int ub = run_config.panel_count;
+	int lb;
+	for (int i = run_config.levels; i > 0; i--) {
+	// for (int i = run_config.levels; i > run_config.levels-1; i--) {
+		lb = run_config.cubed_sphere_level_start[i];
+		// lb = ub-1;
+		Kokkos::parallel_for(Kokkos::RangePolicy(lb, ub), child_to_parent_octo(proxy_source_pots, octo_sphere_panels, run_config.interp_degree));
+		ub = lb;
+	}
+}
+
+void downward_pass_3_octo(const RunConfig& run_config, Kokkos::View<double**, Kokkos::LayoutRight>& xcos, Kokkos::View<double**, Kokkos::LayoutRight>& ycos, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& zcos, Kokkos::View<OctoSpherePanel*> octo_sphere_panels, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_1, 
+					Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_2, Kokkos::View<double**, Kokkos::LayoutRight>& proxy_target_pots_3,  
+					Kokkos::View<double**, Kokkos::LayoutRight>& sols_1, Kokkos::View<double**, Kokkos::LayoutRight>& sols_2, Kokkos::View<double**, Kokkos::LayoutRight>& sols_3, Kokkos::View<int**, Kokkos::LayoutRight> leaf_panel_points) {
+	int lb = 0;
+	int ub;
+	for (int i = 0; i < run_config.levels; i++) {
+		ub = run_config.cubed_sphere_level_start[i+1];
+		Kokkos::parallel_for(Kokkos::MDRangePolicy(Kokkos::DefaultExecutionSpace(), {lb, 0}, {ub, 4}), parent_to_child_3_octo(proxy_target_pots_1, proxy_target_pots_2, proxy_target_pots_3, octo_sphere_panels, run_config.interp_degree));
+		lb = ub;
+	}
+	Kokkos::parallel_for(run_config.panel_count, child_panel_interp_3_octo(xcos, ycos, zcos, proxy_target_pots_1, proxy_target_pots_2, proxy_target_pots_3, sols_1, sols_2, sols_3, octo_sphere_panels, leaf_panel_points, run_config.interp_degree));
 }
 
 

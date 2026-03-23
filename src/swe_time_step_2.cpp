@@ -818,6 +818,9 @@ void swe_back_rk4_step_2(const RunConfig& run_config, Kokkos::View<double**, Kok
 	// bve_forcing(run_config, xcos, ycos, zcos, vors, effective_vorticity, time);
 	upward_pass(run_config, interp_vals, cubed_sphere_panels, area, vors, proxy_source_vors);
 	upward_pass(run_config, interp_vals, cubed_sphere_panels, area, divs, proxy_source_divs);
+	for (int i = 0; i < proxy_source_vors.extent_int(1); i++) {
+		std::cout << proxy_source_vors(6,i) << std::endl;
+	}
 
 	// next do velocity computation
 	Kokkos::View<double**, Kokkos::LayoutRight> proxy_target_1("proxy target vels", run_config.panel_count, dim2size);

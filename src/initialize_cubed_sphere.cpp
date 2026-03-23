@@ -3,7 +3,6 @@
 
 #include "cubed_sphere_transforms.hpp"
 #include "general_utils.hpp"
-#include "initialize_cubed_sphere.hpp"
 #include "run_config.hpp"
 #include "initialize_cubed_sphere.hpp"
 #include "general_utils_impl.hpp"
@@ -464,7 +463,7 @@ void initialize_cube_sphere_irreg_points(RunConfig& run_config, Kokkos::View<dou
 	}
 
 	int index, face;
-	for (int i = 1; i < run_config.lat_count-1; i++) { // ignore pole points for now
+	for (int i = 0; i < run_config.lat_count; i++) {
 		for (int j = 0; j < run_config.lon_count; j++) {
 			index = i*run_config.lon_count + j;
 			face = face_from_xyz(xcos(i,j), ycos(i,j), zcos(i,j));
@@ -472,16 +471,6 @@ void initialize_cube_sphere_irreg_points(RunConfig& run_config, Kokkos::View<dou
 			points_inside[face].push_back(index);
 		}
 	}
-	// south pole
-	index = 0;
-	face = face_from_xyz(xcos(0,0), ycos(0,0), zcos(0,0));
-	cube_panels[face].point_count += 1;
-	points_inside[face].push_back(index);
-	// north pole
-	index = run_config.lat_count*run_config.lon_count - 1;
-	face = face_from_xyz(xcos(run_config.lat_count-1, run_config.lon_count-1), ycos(run_config.lat_count-1, run_config.lon_count-1), zcos(run_config.lat_count-1, run_config.lon_count-1));
-	cube_panels[face].point_count += 1;
-	points_inside[face].push_back(index);
 
 	for (int i = 0; i < cube_panels.size(); i++) {
 		if (cube_panels[i].point_count > run_config.leaf_size) {
